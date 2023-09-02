@@ -41,6 +41,10 @@ class unet(L.LightningModule):
         self.train_losses.append(loss.item())
         return loss
     
+    def on_train_epoch_end(self):
+        epoch_train_loss = torch.mean(self.train_losses)
+        self.log("epoch_train_loss",epoch_train_loss)
+    
     def validation_step(self, batch, batch_idx):
         data1, data2, path, _ =batch
         y = self.model(data1, data2)
@@ -48,6 +52,10 @@ class unet(L.LightningModule):
             F.softmax(y, dim=2), F.softmax(path, dim=2))
         self.val_losses.append(loss)
         self.log("validation_loss", loss)
+
+    def on_validation_epoch_end(self):
+        epoch_val_loss=torch.mean(self.val_losses)
+        self.log("epoch_validation_loss",epoch_val_loss)
 
     def configure_optimizers(self):
         return optim.AdamW(self.parameters(), lr=self.cfg.lr)
