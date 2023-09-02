@@ -48,9 +48,6 @@ class unet(L.LightningModule):
             F.softmax(y, dim=2), F.softmax(path, dim=2))
         self.val_losses.append(loss)
         self.log("validation_loss", loss)
-        
-        log.info('train loss: %.4f, val loss: %.4f'
-                 % (train_loss, val_loss))
 
     def configure_optimizers(self):
         return optim.AdamW(self.parameters(), lr=self.cfg.lr)
