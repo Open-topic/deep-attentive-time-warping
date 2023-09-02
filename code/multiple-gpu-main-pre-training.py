@@ -15,7 +15,7 @@ from model import ProposedModel
 
 import lightning as L
 
-log = logging.getLogger(__name__)
+#log = logging.getLogger(__name__)
 
 import omegaconf
 import os
@@ -79,30 +79,11 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s' % dataset.dataset_name
 
     # log saved at result folder
-    file_handler = logging.FileHandler(
-        '%s.log' % (result_path), 'a')
-    log.addHandler(file_handler)
-
-    log.info('\n=============================================================')
-    log.debug(OmegaConf.to_yaml(cfg), cfg)
-    log.info('dataset ID: %d, dataset name: %s' %
-             (cfg.dataset.ID, dataset.dataset_name))
-
-    # If the number of training + validation data is less than the threshold, do not execute.
-    log.info('Number of training + validation data: %d' %
-             (dataset.N_train_data+dataset.N_val_data))
     if dataset.N_train_data+dataset.N_val_data < cfg.dataset.used_dataset_threshold.num_train_data:
-        log.info('The number of training data is less than %d ...' %
-                 cfg.dataset.used_dataset_threshold.num_train_data)
-        log.info('It is not executed.')
         exit()
 
     # If the length of data is more than the threshold, do not execute.
-    log.info('Length of data: %d' % dataset.length)
     if dataset.length > cfg.dataset.used_dataset_threshold.length_data:
-        log.info('The number of training data is more than %d ...' %
-                 cfg.dataset.used_dataset_threshold.length_data)
-        log.info('It is not executed.')
         exit()
 
     # make data loader
@@ -116,8 +97,6 @@ def main(cfg: DictConfig) -> None:
     else:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
-    log.info('Length of train_loader: %d' % len(train_loader))
-
     # val
     val_dataset = DatasetPreTraining(dataset, 'val', cfg)
     if cfg.val_loader_balance:
@@ -128,7 +107,6 @@ def main(cfg: DictConfig) -> None:
     else:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
-    log.info('Length of val_loader: %d' % len(val_loader))
 
     # Lightning will automatically use all available GPUs!
     trainer = L.Trainer(max_epochs=cfg.epoch)
