@@ -132,7 +132,7 @@ def main(cfg: DictConfig) -> None:
 
     # Lightning will automatically use all available GPUs!
     trainer = L.Trainer()
-    trainer.fit(unet(cfg), train_dataloader=train_loader,val_dataloader = val_loader)
+    trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader)
 
 if __name__ == '__main__':
     main()
