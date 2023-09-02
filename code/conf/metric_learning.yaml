@@ -15,7 +15,7 @@ device: 'cuda:0'
 
 pre_training: True
 lr: 0.0001
-batch_size: 64
+batch_size: 30
 cal_batch_size: True
 num_workers: 2
 positive_ration: 1
