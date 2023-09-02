@@ -46,8 +46,11 @@ class unet(L.LightningModule):
         y = self.model(data1, data2)
         loss = self.loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
-        self.val_losses.append(loss.item())
+        self.val_losses.append(loss)
         self.log("validation_loss", loss)
+        
+        log.info('ptime: %.2f, train loss: %.4f, val loss: %.4f'
+                 % (per_epoch_ptime, train_loss, val_loss))
 
     def configure_optimizers(self):
         return optim.AdamW(self.parameters(), lr=self.cfg.lr)
@@ -131,7 +134,7 @@ def main(cfg: DictConfig) -> None:
     log.info('Length of val_loader: %d' % len(val_loader))
 
     # Lightning will automatically use all available GPUs!
-    trainer = L.Trainer()
+    trainer = L.Trainer(max_epochs=cfg.epoch)
     trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader)
 
 if __name__ == '__main__':
