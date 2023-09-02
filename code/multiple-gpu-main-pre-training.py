@@ -19,6 +19,9 @@ import lightning as L
 
 import omegaconf
 import os
+
+def Average(lst):
+    return sum(lst) / len(lst)
 class unet(L.LightningModule):
     def __init__(self,cfg):
         super().__init__()
@@ -42,7 +45,7 @@ class unet(L.LightningModule):
         return loss
     
     def on_train_epoch_end(self):
-        epoch_train_loss = torch.mean(self.train_losses)
+        epoch_train_loss = Average(self.train_losses)
         self.log("epoch_train_loss",epoch_train_loss)
     
     def validation_step(self, batch, batch_idx):
@@ -54,7 +57,7 @@ class unet(L.LightningModule):
         self.log("validation_loss", loss)
 
     def on_validation_epoch_end(self):
-        epoch_val_loss=torch.mean(self.val_losses)
+        epoch_val_loss=Average(self.val_losses)
         self.log("epoch_validation_loss",epoch_val_loss)
 
     def configure_optimizers(self):
