@@ -20,7 +20,7 @@ num_workers: 2
 positive_ration: 1
 negative_ration: 2
 epoch: 10
-train_loader_balance: True
+train_loader_balance: False
 train_iteration: 100
 val_loader_balance: False
 val_iteration: 10

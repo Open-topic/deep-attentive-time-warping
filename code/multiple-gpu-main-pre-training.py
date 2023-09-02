@@ -104,7 +104,7 @@ def main(cfg: DictConfig) -> None:
         train_batch_sampler = BalancedBatchSampler(
             dataset, 'train', cfg.positive_ration, cfg.negative_ration, cfg)
         train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_sampler=train_batch_sampler, num_workers=cfg.num_workers,batch_size=cfg.batch_size)
+            train_dataset, batch_sampler=train_batch_sampler, num_workers=cfg.num_workers)
     else:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
@@ -114,7 +114,7 @@ def main(cfg: DictConfig) -> None:
         val_batch_sampler = BalancedBatchSampler(
             dataset, 'val', cfg.positive_ration, cfg.negative_ration, cfg)
         val_loader = torch.utils.data.DataLoader(
-            val_dataset, batch_sampler=val_batch_sampler, num_workers=cfg.num_workers,batch_size=cfg.batch_size)
+            val_dataset, batch_sampler=val_batch_sampler, num_workers=cfg.num_workers)
     else:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
