@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 import omegaconf
 import os
 class unet(L.LightningModule):
-    def __init__(self):
+    def __init__(self,cfg):
         super().__init__()
         # define model & optimizer & loss function
         self.model = ProposedModel(input_ch=dataset.channel)
@@ -30,6 +30,7 @@ class unet(L.LightningModule):
         self.loss_function = nn.MSELoss()
         self.train_losses =[]
         self.val_losses=[]
+        self.cfg=cfg
 
     def training_step(self, batch, batch_idx):
         data1, data2, path, _ =batch
@@ -49,7 +50,7 @@ class unet(L.LightningModule):
         self.log("validation_loss", loss)
 
     def configure_optimizers(self):
-        return optim.AdamW(self.parameters(), lr=cfg.lr)
+        return optim.AdamW(self.parameters(), lr=self.cfg.lr)
 
 #c = []
 #hydra.main(config_path='conf',config_name="pre_training")(lambda x:c.append(x))()
@@ -61,7 +62,6 @@ class unet(L.LightningModule):
 def main(cfg: DictConfig) -> None:
     global dataset
     global cwd
-    global cfg
     cwd = hydra.utils.get_original_cwd()+'/'
     fix_seed(cfg.seed)
 
@@ -132,7 +132,7 @@ def main(cfg: DictConfig) -> None:
 
     # Lightning will automatically use all available GPUs!
     trainer = L.Trainer()
-    trainer.fit(unet(), train_dataloader=train_loader,val_dataloader = val_loader)
+    trainer.fit(unet(cfg), train_dataloader=train_loader,val_dataloader = val_loader)
 
 if __name__ == '__main__':
     main()
