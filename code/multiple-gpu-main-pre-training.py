@@ -44,7 +44,7 @@ class unet(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         data1, data2, path, _ =batch
         y = self.model(data1, data2)
-        loss = loss_function(
+        loss = self.loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
         self.val_losses.append(loss.item())
         self.log("validation_loss", loss)
