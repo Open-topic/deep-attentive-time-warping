@@ -17,6 +17,8 @@ import lightning as L
 
 log = logging.getLogger(__name__)
 
+import omegaconf
+import os
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 class unet(L.LightningModule):
@@ -99,7 +101,9 @@ class unet(L.LightningModule):
 #cfg = c[0]
 #print(cfg)
 
-cwd = hydra.utils.get_original_cwd()+'/'
+cwd = os.getcwd()+'/'
+path = cwd+"conf/"+'pre_training'
+cfg = omegaconf.OmegaConf.load(path)
 dataset = get_UCRdataset(cwd, cfg)
 
 # make data loader
