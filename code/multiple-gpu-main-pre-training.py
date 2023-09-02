@@ -61,7 +61,6 @@ class unet(L.LightningModule):
 def main(cfg: DictConfig) -> None:
     cwd = hydra.utils.get_original_cwd()+'/'
     fix_seed(cfg.seed)
-    cwd = hydra.utils.get_original_cwd()+'/'
 
     # load data (split train data & standardizarion)
     dataset = get_UCRdataset(cwd, cfg)
@@ -131,3 +130,6 @@ def main(cfg: DictConfig) -> None:
     # Lightning will automatically use all available GPUs!
     trainer = L.Trainer()
     trainer.fit(unet(), train_dataloader=train_loader,val_dataloader = val_loader)
+
+if __name__ == '__main__':
+    main()
