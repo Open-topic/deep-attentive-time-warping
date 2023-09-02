@@ -59,11 +59,13 @@ class unet(L.LightningModule):
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
+    global dataset
+    global cwd
+    global cfg
     cwd = hydra.utils.get_original_cwd()+'/'
     fix_seed(cfg.seed)
 
     # load data (split train data & standardizarion)
-    global dataset
     dataset = get_UCRdataset(cwd, cfg)
 
     # make result folder
