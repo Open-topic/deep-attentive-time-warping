@@ -102,7 +102,7 @@ class unet(L.LightningModule):
 #print(cfg)
 
 cwd = os.getcwd()+'/'
-path = cwd+"code/"+"conf/"+'pre_training'
+path = cwd+"code/"+"conf/"+'pre_training.yaml'
 cfg = omegaconf.OmegaConf.load(path)
 dataset = get_UCRdataset(cwd, cfg)
 
