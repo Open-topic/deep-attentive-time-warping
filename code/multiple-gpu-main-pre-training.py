@@ -49,8 +49,8 @@ class unet(L.LightningModule):
         self.val_losses.append(loss)
         self.log("validation_loss", loss)
         
-        log.info('ptime: %.2f, train loss: %.4f, val loss: %.4f'
-                 % (per_epoch_ptime, train_loss, val_loss))
+        log.info('train loss: %.4f, val loss: %.4f'
+                 % (train_loss, val_loss))
 
     def configure_optimizers(self):
         return optim.AdamW(self.parameters(), lr=self.cfg.lr)
