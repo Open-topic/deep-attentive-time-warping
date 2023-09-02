@@ -23,7 +23,7 @@ class unet(L.LightningModule):
     def __init__(self):
         super().__init__()
         # define model & optimizer & loss function
-        self.model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
+        self.model = ProposedModel(input_ch=dataset.channel)
         self.model_summary = torchinfo.summary(
             self.model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
         log.debug(self.model_summary)
@@ -63,6 +63,7 @@ def main(cfg: DictConfig) -> None:
     fix_seed(cfg.seed)
 
     # load data (split train data & standardizarion)
+    global dataset
     dataset = get_UCRdataset(cwd, cfg)
 
     # make result folder
