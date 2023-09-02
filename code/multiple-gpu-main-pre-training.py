@@ -40,7 +40,7 @@ class unet(L.LightningModule):
         y = self.model(data1, data2)
         loss = self.loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
-        self.log("train_loss", loss)
+        self.log("train_loss", loss,sync_dist=True)
         self.train_losses.append(loss.item())
         return loss
     
@@ -54,7 +54,7 @@ class unet(L.LightningModule):
         loss = self.loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
         self.val_losses.append(loss)
-        self.log("validation_loss", loss)
+        self.log("validation_loss", loss,sync_dist=True)
 
     def on_validation_epoch_end(self):
         epoch_val_loss=Average(self.val_losses)
@@ -104,7 +104,7 @@ def main(cfg: DictConfig) -> None:
         train_batch_sampler = BalancedBatchSampler(
             dataset, 'train', cfg.positive_ration, cfg.negative_ration, cfg)
         train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_sampler=train_batch_sampler, num_workers=cfg.num_workers)
+            train_dataset, batch_sampler=train_batch_sampler, num_workers=cfg.num_workers,batch_size=cfg.batch_size)
     else:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
@@ -114,7 +114,7 @@ def main(cfg: DictConfig) -> None:
         val_batch_sampler = BalancedBatchSampler(
             dataset, 'val', cfg.positive_ration, cfg.negative_ration, cfg)
         val_loader = torch.utils.data.DataLoader(
-            val_dataset, batch_sampler=val_batch_sampler, num_workers=cfg.num_workers)
+            val_dataset, batch_sampler=val_batch_sampler, num_workers=cfg.num_workers,batch_size=cfg.batch_size)
     else:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
