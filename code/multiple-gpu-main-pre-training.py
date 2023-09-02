@@ -70,16 +70,13 @@ class unet(L.LightningModule):
         model_summary = torchinfo.summary(
             model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
         log.debug(model_summary)
-        optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
         self.loss_function = nn.MSELoss()
         self.train_losses =[]
         self.val_losses=[]
 
     def training_step(self, batch, batch_idx):
         data1, data2, path, _ =batch
-        data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-        path = path.to(cfg.device)
-        y = model(data1, data2)
+        y = self.model(data1, data2)
         loss = self.loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
         self.log("train_loss", loss)
@@ -88,8 +85,6 @@ class unet(L.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         data1, data2, path, _ =batch
-        data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-        path = path.to(cfg.device)
         y = model(data1, data2)
         loss = loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
@@ -97,7 +92,7 @@ class unet(L.LightningModule):
         self.log("validation_loss", loss)
 
     def configure_optimizers(self):
-        return optim.AdamW(self.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
+        return optim.AdamW(self.parameters(), lr=cfg.lr)
 
 #c = []
 #hydra.main(config_path='conf',config_name="pre_training")(lambda x:c.append(x))()

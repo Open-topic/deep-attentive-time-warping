@@ -8,3 +8,4 @@ tslearn
 fastdtw
 autopep8
 hydra-core
+lightning
