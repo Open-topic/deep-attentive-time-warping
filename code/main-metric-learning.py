@@ -81,7 +81,7 @@ def main(cfg: DictConfig) -> None:
         model.load_state_dict(torch.load(
             load_model_path, map_location=cfg.device))
 
-    optimizer = optim.Adam(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
+    optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = ContrastiveLoss(cfg.tau)
 
     # make data loader
