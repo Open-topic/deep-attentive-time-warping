@@ -12,7 +12,7 @@ import glob
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
-from model import fft_ProposedModel
+from model.fft_proposed import fft_ProposedModel
 from loss import ContrastiveLoss
 from eval import kNN
 

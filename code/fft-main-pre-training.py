@@ -11,7 +11,7 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model import fft_ProposedModel
+from model.fft_proposed import fft_ProposedModel
 
 
 log = logging.getLogger(__name__)
