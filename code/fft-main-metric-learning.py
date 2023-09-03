@@ -72,8 +72,8 @@ def main(cfg: DictConfig) -> None:
 
     # define model & optimizer & loss function
     model = fft_ProposedModel(input_ch=dataset.channel).to(cfg.device)
-    torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+    #torchinfo.summary(
+    #    model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
     if cfg.pre_training:
         load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
         log.info('pre-trained model loading...')
