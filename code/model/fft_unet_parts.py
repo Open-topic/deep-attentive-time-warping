@@ -13,12 +13,12 @@ class FFT_DoubleConv(nn.Module):
         if not mid_channels:
             mid_channels = out_channels
 
-        self.first_conv = nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1),
-        self.first_norm = nn.BatchNorm2d(mid_channels),
-        self.first_activation = nn.GELU(),
+        self.first_conv = nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1)
+        self.first_norm = nn.BatchNorm2d(mid_channels)
+        self.first_activation = nn.GELU()
         
-        self.second_conv = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1),
-        self.second_norm = nn.BatchNorm2d(out_channels),
+        self.second_conv = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1)
+        self.second_norm = nn.BatchNorm2d(out_channels)
         self.second_activation = nn.GELU()
 
     def forward(self, x):
