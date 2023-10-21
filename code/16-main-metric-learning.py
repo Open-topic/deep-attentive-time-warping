@@ -126,6 +126,7 @@ def main(cfg: DictConfig) -> None:
                     sim = sim
                     y = model(data1, data2)
                     loss, _ = loss_function(y, data1, data2, sim)
+                    loss = loss.cuda()
                 
                 #scaling loss to prevent gradient underflow
                 scaler.scale(loss).backward()

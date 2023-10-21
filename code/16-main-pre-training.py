@@ -114,15 +114,17 @@ def main(cfg: DictConfig) -> None:
         train_losses = []
         epoch_start_time = time.time()
         for data1, data2, path, _ in tqdm(train_loader):
-            with torch.autocast(device_type=device_type, dtype=torch.float16):
+            with torch.autocast(device_type=device_type, dtype=torch.float16,enabled=use_amp):
                 data1, data2 = data1, data2
                 path = path
                 y = model(data1, data2)
                 loss = loss_function(
-                    F.softmax(y, dim=2), F.softmax(path, dim=2))
+                    F.softmax(y, dim=2), F.softmax(path, dim=2)).cuda()
             #scaling loss to prevent gradient underflow
             scaler.scale(loss).backward()
             #loss.backward()
+
+            scaler.unscale_(optimizer)  # unscale gradients
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
 
@@ -140,7 +142,7 @@ def main(cfg: DictConfig) -> None:
         val_losses = []
         with torch.no_grad():
             for data1, data2, path, _ in tqdm(val_loader):
-                with torch.autocast(device_type=device_type, dtype=torch.float16):
+                with torch.autocast(device_type=device_type, dtype=torch.float16,enabled=use_amp):
                     path = path
                     y = model(data1, data2)
                     loss = loss_function(
