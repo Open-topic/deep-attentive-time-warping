@@ -53,13 +53,14 @@ class unet(L.LightningModule):
         y = self.model(data1, data2)
         loss = self.loss_function(
             F.softmax(y, dim=2), F.softmax(path, dim=2))
-        self.val_losses.append(loss)
+        self.val_losses.append(loss.item())
         self.log("validation_loss", loss,sync_dist=True)
 
     def on_validation_epoch_end(self):
         epoch_val_loss=Average(self.val_losses)
         print("epoch_val_loss: ",epoch_val_loss)
         self.log("epoch_validation_loss",epoch_val_loss)
+        self.val_losses.clear()
 
     def configure_optimizers(self):
         return optim.AdamW(self.parameters(), lr=self.cfg.lr)
