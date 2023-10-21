@@ -15,6 +15,7 @@ from model import ProposedModel
 
 
 log = logging.getLogger(__name__)
+use_amp = True
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
 
