@@ -121,8 +121,8 @@ def main(cfg: DictConfig) -> None:
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
 
     # Lightning will automatically use all available GPUs!
-    trainer = L.Trainer(max_epochs=cfg.epoch)
-    trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader,precision=16)
+    trainer = L.Trainer(max_epochs=cfg.epoch, precision=16)
+    trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader)
 
 if __name__ == '__main__':
     main()
