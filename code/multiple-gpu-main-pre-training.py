@@ -58,6 +58,7 @@ class unet(L.LightningModule):
 
     def on_validation_epoch_end(self):
         epoch_val_loss=Average(self.val_losses)
+        print("epoch_val_loss: ",epoch_val_loss)
         self.log("epoch_validation_loss",epoch_val_loss)
 
     def configure_optimizers(self):
@@ -121,7 +122,7 @@ def main(cfg: DictConfig) -> None:
 
     # Lightning will automatically use all available GPUs!
     trainer = L.Trainer(max_epochs=cfg.epoch)
-    trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader)
+    trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader,precision=16)
 
 if __name__ == '__main__':
     main()

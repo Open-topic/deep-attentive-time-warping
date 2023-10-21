@@ -119,7 +119,13 @@ def main(cfg: DictConfig) -> None:
                 path = path
                 y = model(data1, data2)
                 loss = loss_function(
-                    F.softmax(y, dim=2), F.softmax(path, dim=2)).cuda()
+                    F.softmax(y, dim=2), F.softmax(path, dim=2))
+                loss = loss.cuda()
+                print(loss)
+                print(loss.is_cuda)
+            print(device_type)
+            print(loss)
+            print(loss.is_cuda)
             #scaling loss to prevent gradient underflow
             scaler.scale(loss).backward()
             #loss.backward()
