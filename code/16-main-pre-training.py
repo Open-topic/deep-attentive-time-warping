@@ -65,10 +65,10 @@ def main(cfg: DictConfig) -> None:
         exit()
 
     # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
-    model_summary = torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
-    log.debug(model_summary)
+    model = ProposedModel(input_ch=dataset.channel)
+    # model_summary = torchinfo.summary(
+    #     model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
+    # log.debug(model_summary)
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
@@ -141,7 +141,6 @@ def main(cfg: DictConfig) -> None:
         with torch.no_grad():
             for data1, data2, path, _ in tqdm(val_loader):
                 with torch.autocast(device_type=device_type, dtype=torch.float16):
-                    data1, data2 = data1, data2
                     path = path
                     y = model(data1, data2)
                     loss = loss_function(
