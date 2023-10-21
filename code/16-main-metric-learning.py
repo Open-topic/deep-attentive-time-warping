@@ -14,7 +14,8 @@ from utilities import *
 from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
 from model import ProposedModel
 from loss import ContrastiveLoss
-from eval import kNN
+#from eval import kNN
+from eval import 16-kNN
 
 
 log = logging.getLogger(__name__)
