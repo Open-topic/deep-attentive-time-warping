@@ -15,7 +15,8 @@ from model import ProposedModel
 
 
 log = logging.getLogger(__name__)
-
+scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -138,7 +139,7 @@ def main(cfg: DictConfig) -> None:
         val_losses = []
         with torch.no_grad():
             for data1, data2, path, _ in tqdm(val_loader):
-                with torch.autocast(device_type=cfg.device, dtype=torch.float16):
+                with torch.autocast(device_type=device_type, dtype=torch.float16):
                     data1, data2 = data1, data2
                     path = path
                     y = model(data1, data2)
