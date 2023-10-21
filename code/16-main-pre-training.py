@@ -114,7 +114,7 @@ def main(cfg: DictConfig) -> None:
         train_losses = []
         epoch_start_time = time.time()
         for data1, data2, path, _ in tqdm(train_loader):
-            with torch.autocast(device_type=cfg.device, dtype=torch.float16):
+            with torch.autocast(device_type=device_type, dtype=torch.float16):
                 data1, data2 = data1, data2
                 path = path
                 y = model(data1, data2)
