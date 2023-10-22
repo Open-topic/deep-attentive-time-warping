@@ -14,7 +14,7 @@ from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSample
 from model import ProposedModel
 
 from accelerate import Accelerator
-accelerator = Accelerator()
+accelerator = Accelerator(mixed_precision="fp16")
 device_type = accelerator.device
 
 
