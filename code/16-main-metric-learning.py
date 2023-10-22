@@ -140,7 +140,7 @@ def main(cfg: DictConfig) -> None:
 
             # val
             model.eval()
-            val_ER, val_loss, _, _ = kNNMixed(model, dataset, 'val', cfg)
+            val_ER, val_loss, _, _ = kNNMixed.kNNMixed(model, dataset, 'val', cfg)
 
             epoch_end_time = time.time()
             per_epoch_ptime = epoch_end_time - epoch_start_time
@@ -160,7 +160,7 @@ def main(cfg: DictConfig) -> None:
     log.info('test model: '+load_model_path)
     model.load_state_dict(torch.load(
         load_model_path, map_location=cfg.device))
-    test_ER, test_loss, pred, neighbor = kNNMixed(model, dataset, 'test', cfg)
+    test_ER, test_loss, pred, neighbor = kNNMixed.kNNMixed(model, dataset, 'test', cfg)
     log.info('test loss: %.4f, test ER: %.4f' % (test_loss, test_ER))
 
 
