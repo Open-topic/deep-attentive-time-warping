@@ -4,7 +4,11 @@ import torch
 import collections
 from loss import ContrastiveLoss
 
-device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+#device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+from accelerate import Accelerator
+accelerator = Accelerator()
+device_type = accelerator.device
 
 def 16-kNN(model, dataset, val_or_test, cfg):
     model.eval()
@@ -67,11 +71,12 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
         test_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers)
     loss_function = ContrastiveLoss(cfg.tau)
 
+    model = model.to(device_type)
+    model, test_loader = accelerator.prepare(model, test_loader)
+
     with torch.no_grad():
         for i, (data1, data2, sim) in enumerate(test_loader):
-            with torch.autocast(device_type=device_type, dtype=torch.float16):
-                data1, data2 = data1, data2
-                sim = sim
+            with accelerator.autocast():
                 pred_path = model(data1, data2)
                 loss, d = loss_function(pred_path, data1, data2, sim)
             dist_list.extend(d.cpu().data.numpy())

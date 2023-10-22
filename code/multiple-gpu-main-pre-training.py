@@ -58,6 +58,7 @@ class unet(L.LightningModule):
 
     def on_validation_epoch_end(self):
         epoch_val_loss=Average(self.val_losses)
+        print("")
         print("epoch_val_loss: ",epoch_val_loss)
         self.log("epoch_validation_loss",epoch_val_loss)
         self.val_losses.clear()
@@ -122,8 +123,11 @@ def main(cfg: DictConfig) -> None:
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
 
     # Lightning will automatically use all available GPUs!
-    trainer = L.Trainer(max_epochs=cfg.epoch, precision=16)
-    trainer.fit(unet(cfg), train_dataloaders=train_loader,val_dataloaders = val_loader)
+    model = unet(cfg)
+    trainer = L.Trainer(max_epochs=cfg.epoch, precision=16,gradient_clip_val=2.0)
+    trainer.fit(model, train_dataloaders=train_loader,val_dataloaders = val_loader)
+
+
 
 if __name__ == '__main__':
     main()

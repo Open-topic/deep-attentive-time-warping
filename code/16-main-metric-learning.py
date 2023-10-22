@@ -21,7 +21,11 @@ from eval import 16-kNN
 log = logging.getLogger(__name__)
 use_amp = True
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
-device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+#device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+from accelerate import Accelerator
+accelerator = Accelerator()
+device_type = accelerator.device
 
 
 # @ hydra.main(config_path='conf', config_name='pre_training')
@@ -101,6 +105,9 @@ def main(cfg: DictConfig) -> None:
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of train_loader: %d' % len(train_loader))
 
+    model = model.to(device_type)
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+
     # train
     if not cfg.test_only:
         date = get_date()
@@ -119,27 +126,13 @@ def main(cfg: DictConfig) -> None:
             train_losses = []
             epoch_start_time = time.time()
             for data1, data2, sim in tqdm(train_loader):
-
-                with torch.autocast(device_type=device_type, dtype=torch.float16):
-
-                    data1, data2 = data1, data2
-                    sim = sim
+                optimizer.zero_grad() # clear grad
+                with accelerator.autocast():
                     y = model(data1, data2)
                     loss, _ = loss_function(y, data1, data2, sim)
                     loss = loss.cuda()
-                
-                #scaling loss to prevent gradient underflow
-                scaler.scale(loss).backward()
-                #loss.backward()
-
-                scaler.unscale_(optimizer)  # unscale gradients
-
-                # You may use the same value for max_norm here as you would without gradient scaling.
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad() # set_to_none=True here can modestly improve performance
+                accelerator.backward(loss)
+                optimizer.step()
 
                 # optimizer.step()
                 # optimizer.zero_grad()

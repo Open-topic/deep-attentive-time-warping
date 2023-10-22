@@ -13,11 +13,15 @@ from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
 from model import ProposedModel
 
+from accelerate import Accelerator
+accelerator = Accelerator()
+device_type = accelerator.device
+
 
 log = logging.getLogger(__name__)
 use_amp = True
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
-device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+#device_type = accelerator.device
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -106,6 +110,10 @@ def main(cfg: DictConfig) -> None:
         'loss', result_path+save_name, cfg)
     save_model = SaveModel('loss', 'less', result_path+save_name, cfg)
 
+    model = model.to(device_type)
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    val_loader = accelerator.prepare(val_loader)
+
     epoch = 0
     fix_seed(cfg.seed)
     while epoch < cfg.epoch:
@@ -114,33 +122,14 @@ def main(cfg: DictConfig) -> None:
         train_losses = []
         epoch_start_time = time.time()
         for data1, data2, path, _ in tqdm(train_loader):
-            with torch.autocast(device_type=device_type, dtype=torch.float16,enabled=use_amp):
+            optimizer.zero_grad()
+            with accelerator.autocast():
                 data1, data2 = data1, data2
                 path = path
                 y = model(data1, data2)
-                loss = loss_function(
-                    F.softmax(y, dim=2), F.softmax(path, dim=2))
-                loss = loss.cuda()
-                print(loss)
-                print(loss.is_cuda)
-            print(device_type)
-            print(loss)
-            print(loss.is_cuda)
-            #scaling loss to prevent gradient underflow
-            scaler.scale(loss).backward()
-            #loss.backward()
-
-            scaler.unscale_(optimizer)  # unscale gradients
-
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad() # set_to_none=True here can modestly improve performance
-
-
-            # optimizer.step()
-            # optimizer.zero_grad()
+                loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
+            accelerator.backward(loss)
+            optimizer.step()
             train_losses.append(loss.item())
 
         # val
@@ -148,7 +137,7 @@ def main(cfg: DictConfig) -> None:
         val_losses = []
         with torch.no_grad():
             for data1, data2, path, _ in tqdm(val_loader):
-                with torch.autocast(device_type=device_type, dtype=torch.float16,enabled=use_amp):
+                with accelerator.autocast():
                     path = path
                     y = model(data1, data2)
                     loss = loss_function(
