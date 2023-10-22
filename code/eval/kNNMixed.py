@@ -78,6 +78,7 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     with torch.no_grad():
         for i, (data1, data2, sim) in enumerate(test_loader):
             with accelerator.autocast():
+                data1, data2, sim = data1.to(device_type), data2.to(device_type), sim.to(device_type)
                 pred_path = model(data1, data2)
                 loss, d = loss_function(pred_path, data1, data2, sim)
             dist_list.extend(d.cpu().data.numpy())
