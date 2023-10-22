@@ -72,8 +72,8 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     loss_function = ContrastiveLoss(cfg.tau)
 
     model = model.to(device_type)
-    model = accelerator.prepare(model)
-    test_loader =  accelerator.prepare(test_loader)
+    model = accelerator.prepare_model(model)
+    test_loader =  accelerator.prepare_data_loader(test_loader)
 
     with torch.no_grad():
         for i, (data1, data2, sim) in enumerate(test_loader):

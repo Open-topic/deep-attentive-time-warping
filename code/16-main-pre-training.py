@@ -112,7 +112,7 @@ def main(cfg: DictConfig) -> None:
 
     model = model.to(device_type)
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
-    val_loader = accelerator.prepare(val_loader)
+    val_loader = accelerator.prepare_data_loader(val_loader)
 
     epoch = 0
     fix_seed(cfg.seed)
