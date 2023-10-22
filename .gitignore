@@ -4,3 +4,4 @@ mixed_precision_deep_attentive_time_warping.ipynb
 __pycache__
 outputs
 official docs
+.ipynb_checkpoints/

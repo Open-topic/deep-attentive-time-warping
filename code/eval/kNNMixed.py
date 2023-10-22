@@ -10,7 +10,7 @@ from accelerate import Accelerator
 accelerator = Accelerator(mixed_precision="fp16")
 device_type = accelerator.device
 
-def 16-kNN(model, dataset, val_or_test, cfg):
+def kNNMixed(model, dataset, val_or_test, cfg):
     model.eval()
     if val_or_test == 'val':
         test_data, test_label = dataset.val_data, dataset.val_label
