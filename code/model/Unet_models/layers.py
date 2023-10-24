@@ -17,14 +17,14 @@ class unetConv2(nn.Module):
             for i in range(1, n + 1):
                 conv = nn.Sequential(nn.Conv2d(in_size, out_size, ks, s, p),
                                      nn.BatchNorm2d(out_size),
-                                     nn.ReLU(inplace=True), )
+                                     nn.GELU(), )
                 setattr(self, 'conv%d' % i, conv)
                 in_size = out_size
 
         else:
             for i in range(1, n + 1):
                 conv = nn.Sequential(nn.Conv2d(in_size, out_size, ks, s, p),
-                                     nn.ReLU(inplace=True), )
+                                     nn.GELU(), )
                 setattr(self, 'conv%d' % i, conv)
                 in_size = out_size
 
