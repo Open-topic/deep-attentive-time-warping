@@ -74,6 +74,8 @@ def main(cfg: DictConfig) -> None:
         model_summary = torchinfo.summary(
             model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
         log.debug(model_summary)
+        print(model_summary)
+
     except:
         print('cannot show model summary')
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
