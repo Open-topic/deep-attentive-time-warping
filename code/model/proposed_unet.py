@@ -1,5 +1,5 @@
 # from .unet_model import UNet
-from Unet_models import UNet
+from model.Unet_models import UNet
 import torch
 import torch.nn as nn
 
@@ -16,7 +16,7 @@ def outer_concatenation(x, y):
 class ProposedModel(nn.Module):
     def __init__(self, input_ch):
         super().__init__()
-        self.unet = UNet(n_channels=input_ch*2, n_classes=1)
+        self.unet = UNet.UNet(in_channels=input_ch*2, n_classes=1)
 
     def forward(self, data1, data2):
         pred_path = self.unet(outer_concatenation(data1, data2))

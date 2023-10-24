@@ -104,7 +104,7 @@ def main(cfg: DictConfig) -> None:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of train_loader: %d' % len(train_loader))
-    log.info('Batch size: %d' % len(cfg.batch_size))
+    log.info('Batch size: {}'.format(cfg.batch_size))
 
     model = model.to(device_type)
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
