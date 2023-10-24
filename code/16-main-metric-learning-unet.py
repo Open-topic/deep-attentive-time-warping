@@ -80,8 +80,10 @@ def main(cfg: DictConfig) -> None:
 
     # define model & optimizer & loss function
     model = ProposedModel(input_ch=dataset.channel)
-    torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+    try:
+        torchinfo.summary(model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+    except:
+        print('cannot show model summary')
     if cfg.pre_training:
         load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
         log.info('pre-trained model loading...')

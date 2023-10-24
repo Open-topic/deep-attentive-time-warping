@@ -80,6 +80,12 @@ def main(cfg: DictConfig) -> None:
 
     # define model & optimizer & loss function
     model = ProposedModel(input_ch=dataset.channel)
+
+    try:
+        torchinfo.summary(model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+    except:
+        print('cannot show model summary')
+
     torchinfo.summary(
         model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
     if cfg.pre_training:

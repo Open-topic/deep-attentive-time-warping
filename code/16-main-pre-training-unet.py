@@ -70,9 +70,12 @@ def main(cfg: DictConfig) -> None:
 
     # define model & optimizer & loss function
     model = ProposedModel(input_ch=dataset.channel)
-    # model_summary = torchinfo.summary(
-    #     model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
-    # log.debug(model_summary)
+    try:
+        model_summary = torchinfo.summary(
+            model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
+        log.debug(model_summary)
+    except:
+        print('cannot show model summary')
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
