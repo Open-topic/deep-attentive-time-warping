@@ -100,6 +100,7 @@ def main(cfg: DictConfig) -> None:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of val_loader: %d' % len(val_loader))
+    log.info('Batch size: %d' % len(cfg.batch_size))
 
     # train
     date = get_date()
