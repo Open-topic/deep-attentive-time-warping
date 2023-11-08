@@ -84,20 +84,21 @@ def main(cfg: DictConfig) -> None:
 
     # # Determine_batch_size by power method
     # for i in range(100):
-    #         try:
+    #           try:
     #             print("power_batch_size:",2**i)
     #             data_in_shape = dataset.train_data[:1].shape
+    #             data_in_shape = list(data_in_shape)
     #             data_in_shape[0] = 2**i
+    #             print("data_in_shape:",data_in_shape)
+    #             data_in_shape = tuple(data_in_shape)
     #             model_summary = torchinfo.summary(
     #                 model, (data_in_shape, data_in_shape), device=cfg.device, verbose=0)
+    #           except:
     #             # log.debug(model_summary)
     #             log.debug("power_batch_size", 2**i)
-
-    #         except:
-    #             print('cannot show model summary')
     #             break
-    #         print("power_batch_size:",2**i)
-    #         log.debug("power_batch_size:",2**i)
+    # Power method fail, we need to try forward/backward
+
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
