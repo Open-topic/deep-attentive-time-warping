@@ -46,28 +46,31 @@ def create_path_img(path):
     return img
 
 
-def determine_batch_size(model, input_shape, device):
+def determine_batch_size(model, input_shape, device,dtypes = None):
     cmd = 'nvidia-smi', '--query-gpu=memory.free', '--format=csv,noheader'
     free_memory = str(subprocess.check_output(cmd))
     free_memory = int(re.findall(
         r'([+-]?[0-9]+\.?[0-9]*)', free_memory)[int(device[-1])])
     log.debug('free memory: %d' % free_memory)
     for i in range(100):
-        if np.shape(np.shape(input_shape))[0] == 1:
-            input = (2**i, )+input_shape
-        else:
-            input = ()
-            for x in input_shape:
-                input += ((2**i, )+x, )
-        model_summary = str(torchinfo.summary(
-            model, input, device=device, verbose=0))
-        consumed_memory = re.findall(
-            r'([+-]?[0-9]+\.?[0-9]*)', model_summary)[-1]
-        consumed_memory = float(consumed_memory)
-        log.debug('batch size: %d' % (2**i))
-        log.debug('Estimated Total Size (MB): %.2f' % consumed_memory)
-        if free_memory < consumed_memory:
-            return 2**(i-1)
+        try:
+            if np.shape(np.shape(input_shape))[0] == 1:
+                input = (2**i, )+input_shape
+            else:
+                input = ()
+                for x in input_shape:
+                    input += ((2**i, )+x, )
+            log.debug("input_shape that util realize = ",input)
+            model_summary = str(torchinfo.summary(
+                model, (input,input), device=device, verbose=0, dtypes = dtypes))
+            consumed_memory = re.findall(
+                r'([+-]?[0-9]+\.?[0-9]*)', model_summary)[-1]
+            consumed_memory = float(consumed_memory)
+            log.debug('batch size: %d' % (2**i))
+            log.debug('Estimated Total Size (MB): %.2f' % consumed_memory)
+        except:
+            break
+        return 2**(i)
 
 
 class TrainingCurve():

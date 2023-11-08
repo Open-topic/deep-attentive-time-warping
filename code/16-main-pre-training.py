@@ -19,9 +19,13 @@ device_type = accelerator.device
 
 
 log = logging.getLogger(__name__)
+# log.setLevel(logging.DEBUG)
+
 use_amp = True
-scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+# scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 #device_type = accelerator.device
+# torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# print(torch_device)
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -74,10 +78,26 @@ def main(cfg: DictConfig) -> None:
         model_summary = torchinfo.summary(
             model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
         log.debug(model_summary)
-        print(model_summary)
 
     except:
         print('cannot show model summary')
+
+    # # Determine_batch_size by power method
+    # for i in range(100):
+    #         try:
+    #             print("power_batch_size:",2**i)
+    #             data_in_shape = dataset.train_data[:1].shape
+    #             data_in_shape[0] = 2**i
+    #             model_summary = torchinfo.summary(
+    #                 model, (data_in_shape, data_in_shape), device=cfg.device, verbose=0)
+    #             # log.debug(model_summary)
+    #             log.debug("power_batch_size", 2**i)
+
+    #         except:
+    #             print('cannot show model summary')
+    #             break
+    #         print("power_batch_size:",2**i)
+    #         log.debug("power_batch_size:",2**i)
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
