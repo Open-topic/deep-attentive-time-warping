@@ -19,13 +19,9 @@ device_type = accelerator.device
 
 
 log = logging.getLogger(__name__)
-# log.setLevel(logging.DEBUG)
+log.setLevel(level=logging.NOTSET)
 
 use_amp = True
-# scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
-#device_type = accelerator.device
-# torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# print(torch_device)
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -82,23 +78,6 @@ def main(cfg: DictConfig) -> None:
     except:
         print('cannot show model summary')
 
-    # # Determine_batch_size by power method
-    # for i in range(100):
-    #           try:
-    #             print("power_batch_size:",2**i)
-    #             data_in_shape = dataset.train_data[:1].shape
-    #             data_in_shape = list(data_in_shape)
-    #             data_in_shape[0] = 2**i
-    #             print("data_in_shape:",data_in_shape)
-    #             data_in_shape = tuple(data_in_shape)
-    #             model_summary = torchinfo.summary(
-    #                 model, (data_in_shape, data_in_shape), device=cfg.device, verbose=0)
-    #           except:
-    #             # log.debug(model_summary)
-    #             log.debug("power_batch_size", 2**i)
-    #             break
-    # Power method fail, we need to try forward/backward
-
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
@@ -143,6 +122,50 @@ def main(cfg: DictConfig) -> None:
 
     epoch = 0
     fix_seed(cfg.seed)
+
+    # Find the correct batch_size via power method
+    for power in range(20):
+        data1, data2, path, sim = train_dataset.__getitem__(0)
+        data_shape = list(data1.shape)
+        path_shape = list(path.shape)
+        power_batch_size = 2**power
+        data_shape.insert(0,power_batch_size)
+        path_shape.insert(0,power_batch_size)
+        print("data_shape",data_shape)
+        print("path_shape",path_shape)
+        find_batch_size = 2**power
+        cfg.batch_size = find_batch_size
+        dataset = get_UCRdataset(cwd, cfg)
+        train_dataset = DatasetPreTraining(dataset, 'train', cfg)  
+        try:
+            model.train()
+            train_losses = []
+            epoch_start_time = time.time()
+            print("tried power =", power)
+            for _ in tqdm(range(5)):
+                optimizer.zero_grad()
+                data1 = torch.rand(data_shape).to(accelerator.device)
+                data2 = torch.rand(data_shape).to(accelerator.device)
+                path = torch.rand(path_shape).to(accelerator.device)
+                print("check point")
+                with accelerator.autocast():
+                    y = model(data1, data2)
+                    loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
+                accelerator.backward(loss)
+                optimizer.step()
+                train_losses.append(loss.item())
+                
+                break
+        except Exception as error:
+            print(error)
+            print("power: ", power-1)
+            break
+    
+    model = model.to(device_type)
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    val_loader = accelerator.prepare_data_loader(val_loader)
+
+    # Training loop
     while epoch < cfg.epoch:
         # train
         model.train()
