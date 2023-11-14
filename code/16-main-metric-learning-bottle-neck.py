@@ -131,10 +131,10 @@ def main(cfg: DictConfig) -> None:
             for data1, data2, sim in tqdm(train_loader):
                 optimizer.zero_grad() # clear grad
                 with accelerator.autocast():
-                    y, similarity = model(data1, data2) # Fix the model
+                    y, predicted_similarity = model(data1, data2) # Fix the model
                     loss, _ = loss_function(y, data1, data2, sim)
-                    predictive_loss = F.binary_cross_entropy(input = similarity,target = sim)
-                    loss = loss.cuda()
+                    predictive_loss = F.binary_cross_entropy(input = predicted_similarity,target = sim)
+                    loss = loss.to(device_type)
                     ## Combine losses
                     loss = loss + predictive_loss
                 accelerator.backward(loss)

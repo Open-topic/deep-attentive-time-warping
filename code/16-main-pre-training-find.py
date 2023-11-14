@@ -142,7 +142,7 @@ def main(cfg: DictConfig) -> None:
             train_losses = []
             epoch_start_time = time.time()
             print("tried power =", power)
-            for _ in tqdm(range(5)):
+            for _ in range(5):
                 optimizer.zero_grad()
                 data1 = torch.rand(data_shape).to(accelerator.device)
                 data2 = torch.rand(data_shape).to(accelerator.device)
@@ -160,51 +160,6 @@ def main(cfg: DictConfig) -> None:
             print(error)
             print("power: ", power-1)
             break
-    
-    model = model.to(device_type)
-    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
-    val_loader = accelerator.prepare_data_loader(val_loader)
-
-    # Training loop
-    while epoch < cfg.epoch:
-        # train
-        model.train()
-        train_losses = []
-        epoch_start_time = time.time()
-        for data1, data2, path, _ in tqdm(train_loader):
-            optimizer.zero_grad()
-            with accelerator.autocast():
-                data1, data2 = data1, data2
-                path = path
-                y = model(data1, data2)
-                loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
-            accelerator.backward(loss)
-            optimizer.step()
-            train_losses.append(loss.item())
-
-        # val
-        model.eval()
-        val_losses = []
-        with torch.no_grad():
-            for data1, data2, path, _ in tqdm(val_loader):
-                with accelerator.autocast():
-                    path = path
-                    y = model(data1, data2)
-                    loss = loss_function(
-                        F.softmax(y, dim=2), F.softmax(path, dim=2))
-                val_losses.append(loss.item())
-
-        epoch_end_time = time.time()
-        per_epoch_ptime = epoch_end_time - epoch_start_time
-        train_loss = torch.mean(torch.FloatTensor(train_losses)).item()
-        val_loss = torch.mean(torch.FloatTensor(val_losses)).item()
-
-        training_curve_loss.save(train_value=train_loss, val_value=val_loss)
-        save_model.save(model, val_loss)
-        log.info('[%d/%d]-ptime: %.2f, train loss: %.4f, val loss: %.4f'
-                 % ((epoch + 1), cfg.epoch, per_epoch_ptime, train_loss, val_loss))
-        epoch += 1
-
 
 if __name__ == '__main__':
     main()
