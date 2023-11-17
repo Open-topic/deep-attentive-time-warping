@@ -10,7 +10,7 @@ import numpy as np
 class UNet(nn.Module):
 
     #def __init__(self, in_channels=3, n_classes=1, feature_scale=4, is_deconv=True, is_batchnorm=True):
-    def __init__(self, in_channels, n_classes, bilinear=True, feature_scale=4, is_deconv=True, is_batchnorm=True):
+    def __init__(self, in_channels, n_classes, bilinear=False, feature_scale=4, is_deconv=True, is_batchnorm=True):
         super(UNet, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels

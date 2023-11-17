@@ -11,7 +11,7 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model import ProposedModel
+from model.proposed_unet_3Plus import ProposedModel
 
 from accelerate import Accelerator
 accelerator = Accelerator(mixed_precision="fp16")
@@ -19,9 +19,9 @@ device_type = accelerator.device
 
 
 log = logging.getLogger(__name__)
-log.setLevel(level=logging.NOTSET)
-
 use_amp = True
+scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+#device_type = accelerator.device
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -37,7 +37,7 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s_%s/' % (str(cfg.dataset.ID).zfill(3),
                                dataset.dataset_name)
     make_folder(path=result_path)
-    result_path += 'finding_batch_size/'
+    result_path += 'pre_training/'
     make_folder(path=result_path)
     result_path += '%s' % dataset.dataset_name
 
@@ -74,10 +74,9 @@ def main(cfg: DictConfig) -> None:
         model_summary = torchinfo.summary(
             model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
         log.debug(model_summary)
-
+        print(model_summary)
     except:
         print('cannot show model summary')
-
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 

@@ -46,6 +46,7 @@ class Up(nn.Module):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
+        # Bilinear will use torch nn.Upsample to up sample instead of ConvTranspose2d.
         if bilinear:
             self.up = nn.Upsample(
                 scale_factor=2, mode='bilinear', align_corners=True)
