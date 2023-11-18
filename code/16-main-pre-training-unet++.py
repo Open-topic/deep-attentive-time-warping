@@ -119,6 +119,8 @@ def main(cfg: DictConfig) -> None:
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
     val_loader = accelerator.prepare_data_loader(val_loader)
 
+    max_grad_norm = 0.8
+
     epoch = 0
     fix_seed(cfg.seed)
     while epoch < cfg.epoch:
@@ -134,6 +136,7 @@ def main(cfg: DictConfig) -> None:
                 y = model(data1, data2)
                 loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
             accelerator.backward(loss)
+            accelerator.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
             train_losses.append(loss.item())
 

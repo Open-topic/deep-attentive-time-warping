@@ -111,6 +111,8 @@ def main(cfg: DictConfig) -> None:
     model = model.to(device_type)
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
 
+    max_grad_norm = 0.8
+
     # train
     if not cfg.test_only:
         date = get_date()
@@ -135,6 +137,7 @@ def main(cfg: DictConfig) -> None:
                     loss, _ = loss_function(y, data1, data2, sim)
                     loss = loss.cuda()
                 accelerator.backward(loss)
+                accelerator.clip_grad_norm_(model.parameters(), max_grad_norm)
                 optimizer.step()
 
                 # optimizer.step()
