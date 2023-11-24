@@ -25,7 +25,7 @@ scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 #device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 from accelerate import Accelerator
-accelerator = Accelerator(mixed_precision="fp16")
+accelerator = Accelerator()
 device_type = accelerator.device
 
 
