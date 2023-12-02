@@ -20,7 +20,6 @@ class ProposedModel(nn.Module):
 
     def forward(self, data1, data2):
         formatted_input = outer_concatenation(data1, data2)
-        formatted_input = formatted_input.permute(0,2,3,1)
         print("formatted_input.shape: ",formatted_input.shape)
         pred_path = self.unet(formatted_input)
         return pred_path.squeeze(1)

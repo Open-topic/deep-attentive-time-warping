@@ -11,7 +11,7 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model.proposed_unet_3Plus_dummy import ProposedModel
+from model.proposed_unet_3Plus import ProposedModel
 
 from accelerate import Accelerator
 accelerator = Accelerator(mixed_precision="fp16")
@@ -122,14 +122,16 @@ def main(cfg: DictConfig) -> None:
     epoch = 0
     fix_seed(cfg.seed)
 
-    # Find the correct batch_size via power method
-    for power in range(20):
+    # Test valid shape for U-net ++ and +++
+    batch_size = 4
+    for length in range(30,320,1):
         data1, data2, path, sim = train_dataset.__getitem__(0)
         data_shape = list(data1.shape)
         path_shape = list(path.shape)
         power_batch_size = 2**power
         data_shape.insert(0,power_batch_size)
         path_shape.insert(0,power_batch_size)
+        data_shape = [batch_size,length,1]
         print("data_shape",data_shape)
         print("path_shape",path_shape)
         find_batch_size = 2**power
@@ -149,7 +151,6 @@ def main(cfg: DictConfig) -> None:
                 print("check point")
                 with accelerator.autocast():
                     y = model(data1, data2)
-                    print(y.shape)
                     loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
                 accelerator.backward(loss)
                 optimizer.step()

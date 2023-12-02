@@ -2,19 +2,21 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from layers import unetConv2, unetUp_origin
-from init_weights import init_weights
+from .layers import unetConv2, unetUp_origin
+from .init_weights import init_weights
 import numpy as np
 from torchvision import models
 class UNet_2Plus(nn.Module):
 
-    def __init__(self, in_channels=3, n_classes=1, feature_scale=4, is_deconv=True, is_batchnorm=True, is_ds=True):
+    #def __init__(self, in_channels=3, n_classes=1, feature_scale=4, is_deconv=True, is_batchnorm=True, is_ds=True):
+    def __init__(self, in_channels, n_classes, bilinear=True, feature_scale=4, is_deconv=True, is_batchnorm=True, is_ds=True):
         super(UNet_2Plus, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels
         self.is_batchnorm = is_batchnorm
         self.is_ds = is_ds
         self.feature_scale = feature_scale
+        self.n_classes = n_classes
 
         # filters = [32, 64, 128, 256, 512]
         filters = [64, 128, 256, 512, 1024]
@@ -48,10 +50,10 @@ class UNet_2Plus(nn.Module):
         self.up_concat04 = unetUp_origin(filters[1], filters[0], self.is_deconv, 5)
 
         # final conv (without any concat)
-        self.final_1 = nn.Conv2d(filters[0], n_classes, 1)
-        self.final_2 = nn.Conv2d(filters[0], n_classes, 1)
-        self.final_3 = nn.Conv2d(filters[0], n_classes, 1)
-        self.final_4 = nn.Conv2d(filters[0], n_classes, 1)
+        self.final_1 = nn.Conv2d(filters[0], self.n_classes, 1)
+        self.final_2 = nn.Conv2d(filters[0], self.n_classes, 1)
+        self.final_3 = nn.Conv2d(filters[0], self.n_classes, 1)
+        self.final_4 = nn.Conv2d(filters[0], self.n_classes, 1)
 
         # initialise weights
         for m in self.modules():
@@ -96,14 +98,15 @@ class UNet_2Plus(nn.Module):
         final = (final_1 + final_2 + final_3 + final_4) / 4
 
         if self.is_ds:
+            # return F.sigmoid(final)
             return final
         else:
-            return final_4
+            return F.sigmoid(final_4)
 
-model = UNet_2Plus()
-print('# generator parameters:', 1.0 * sum(param.numel() for param in model.parameters())/1000000)
-params = list(model.named_parameters())
-for i in range(len(params)):
-    (name, param) = params[i]
-    print(name)
-    print(param.shape)
+# model = UNet_2Plus()
+# print('# generator parameters:', 1.0 * sum(param.numel() for param in model.parameters())/1000000)
+# params = list(model.named_parameters())
+# for i in range(len(params)):
+#     (name, param) = params[i]
+#     print(name)
+#     print(param.shape)
