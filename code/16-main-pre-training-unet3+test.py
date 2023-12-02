@@ -164,7 +164,7 @@ def main(cfg: DictConfig) -> None:
             print(error)
             print("length that cause problem: ", length)
             bad_length.append(length)
-print("good_length: ",good_length)
-print("bad_length: ",bad_length)
+    print("good_length: ",good_length)
+    print("bad_length: ",bad_length)
 if __name__ == '__main__':
     main()
