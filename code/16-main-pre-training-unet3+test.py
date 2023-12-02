@@ -124,17 +124,17 @@ def main(cfg: DictConfig) -> None:
 
     # Test valid shape for U-net ++ and +++
     batch_size = 4
+    channels = dataset.channel
     for length in range(30,320,1):
         data1, data2, path, sim = train_dataset.__getitem__(0)
-        data_shape = list(data1.shape)
-        path_shape = list(path.shape)
-        power_batch_size = 2**power
-        data_shape.insert(0,power_batch_size)
-        path_shape.insert(0,power_batch_size)
-        data_shape = [batch_size,length,1]
+        # data_shape = list(data1.shape)
+        # path_shape = list(path.shape)
+        # data_shape.insert(0,power_batch_size)
+        # path_shape.insert(0,power_batch_size)
+        data_shape = [batch_size,length,channels]
+        path_shape = [batch_size,length,length]
         print("data_shape",data_shape)
         print("path_shape",path_shape)
-        find_batch_size = 2**power
         cfg.batch_size = find_batch_size
         dataset = get_UCRdataset(cwd, cfg)
         train_dataset = DatasetPreTraining(dataset, 'train', cfg)  
@@ -143,7 +143,7 @@ def main(cfg: DictConfig) -> None:
             train_losses = []
             epoch_start_time = time.time()
             print("tried power =", power)
-            for _ in range(5):
+            for _ in range(2):
                 optimizer.zero_grad()
                 data1 = torch.rand(data_shape).to(accelerator.device)
                 data2 = torch.rand(data_shape).to(accelerator.device)
