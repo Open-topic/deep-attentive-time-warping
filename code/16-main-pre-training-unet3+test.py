@@ -135,14 +135,14 @@ def main(cfg: DictConfig) -> None:
         path_shape = [batch_size,length,length]
         print("data_shape",data_shape)
         print("path_shape",path_shape)
-        cfg.batch_size = find_batch_size
-        dataset = get_UCRdataset(cwd, cfg)
-        train_dataset = DatasetPreTraining(dataset, 'train', cfg)  
+        # cfg.batch_size = find_batch_size
+        # dataset = get_UCRdataset(cwd, cfg)
+        # train_dataset = DatasetPreTraining(dataset, 'train', cfg)  
         try:
             model.train()
             train_losses = []
             epoch_start_time = time.time()
-            print("tried power =", power)
+            print("tried length =", length)
             for _ in range(2):
                 optimizer.zero_grad()
                 data1 = torch.rand(data_shape).to(accelerator.device)
