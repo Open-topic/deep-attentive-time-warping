@@ -125,7 +125,9 @@ def main(cfg: DictConfig) -> None:
     # Test valid shape for U-net ++ and +++
     batch_size = 4
     channels = dataset.channel
-    for length in range(30,320,1):
+    good_length = []
+    bad_length = []
+    for length in range(30,321,1):
         data1, data2, path, sim = train_dataset.__getitem__(0)
         # data_shape = list(data1.shape)
         # path_shape = list(path.shape)
@@ -155,12 +157,14 @@ def main(cfg: DictConfig) -> None:
                 accelerator.backward(loss)
                 optimizer.step()
                 train_losses.append(loss.item())
-                
+                print("length that is ok: ", length)
+                good_length.append(length)
                 break
         except Exception as error:
             print(error)
-            print("power: ", power-1)
-            break
-
+            print("length that cause problem: ", length)
+            bad_length.append(length)
+print("good_length: ",good_length)
+print("bad_length: ",bad_length)
 if __name__ == '__main__':
     main()
