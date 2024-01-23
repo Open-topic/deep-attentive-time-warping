@@ -1,5 +1,5 @@
 # from .unet_model import UNet
-from model.Unet_models import UNet_bottle_neck
+from model import UNet_bottle_neck
 import torch
 import torch.nn as nn
 
