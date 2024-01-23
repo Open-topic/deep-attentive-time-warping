@@ -1,6 +1,7 @@
 """ Full assembly of the parts to form the complete network """
 
 import torch.nn.functional as F
+import torch
 
 from .unet_parts import *
 
@@ -38,5 +39,6 @@ class UNet_bottle_neck(nn.Module):
         x = self.up4(x, x1)
         logits = self.outc(x)
         bottle_neck_pooled = self.bottle_neck_pooling(x5) # global pool the bottleneck
+        bottle_neck_pooled = torch.squeeze(bottle_neck_pooled,(-1,-2))
         predicted_similarity = F.sigmoid(self.projector(bottle_neck_pooled)) # 1
-        return logits
+        return logits, predicted_similarity

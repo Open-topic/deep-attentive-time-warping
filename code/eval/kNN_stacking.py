@@ -75,15 +75,18 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
             loss, d = loss_function(pred_path, data1, data2, sim)
             dist_list.extend(d.cpu().data.numpy())
             loss_list.append(loss.item())
-            simiarity_list.append()
+            simiarity_list.extend(predicted_similarity)
 
-    dist_list = np.array(dist_list, predicted_similarity)
+    dist_list = np.array(dist_list)
+    simiarity_list = np.array(simiarity_list)
 
     # ASC
     index = np.argsort(dist_list)
+    index_by_similarity = np.argsort(simiarity_list)
     # DESC
     # index = np.argsort(dist_list)[::-1]
 
     neighbor = train_label[index]
+    neighbor_by_simiarity = train_label[index_by_similarity]
 
     return neighbor, np.mean(np.array(loss_list)), simiarity_list

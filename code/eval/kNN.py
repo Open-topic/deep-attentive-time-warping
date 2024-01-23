@@ -88,3 +88,4 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     neighbor = train_label[index]
 
     return neighbor, np.mean(np.array(loss_list))
+    
