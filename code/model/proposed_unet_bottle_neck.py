@@ -16,7 +16,7 @@ def outer_concatenation(x, y):
 class ProposedModel(nn.Module):
     def __init__(self, input_ch):
         super().__init__()
-        self.unet = UNet_bottle_neck.UNet_bottle_neck(in_channels=input_ch*2, n_classes=1)
+        self.unet = UNet_bottle_neck(n_channels=input_ch*2, n_classes=1)
 
     def forward(self, data1, data2):
         pred_path, predicted_similarity = self.unet(outer_concatenation(data1, data2))
