@@ -8,4 +8,4 @@ tslearn
 fastdtw
 autopep8
 hydra-core
-accelerate
+accelerate == 0.24.1
