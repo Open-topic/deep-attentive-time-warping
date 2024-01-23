@@ -21,7 +21,7 @@ def kNN(model, dataset, val_or_test, cfg):
     pred_list = []
 
     for i in tqdm(range(test_data.shape[0])):
-        neighbor, loss = cal_dist(
+        neighbor, loss, simiarity_list = cal_dist(
             model, test_data[i], test_label[i], train_data, train_label, cfg)
         neighbor_list.append(neighbor)
         loss_list.append(loss)
@@ -60,6 +60,7 @@ class TestDataset(torch.utils.data.Dataset):
 def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     dist_list = []
     loss_list = []
+    simiarity_list = []
 
     test_dataset = TestDataset(test_data, test_label, train_data, train_label)
     test_loader = torch.utils.data.DataLoader(
@@ -70,15 +71,13 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
         for i, (data1, data2, sim) in enumerate(test_loader):
             data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
             sim = sim.to(cfg.device)
-            pred_path = model(data1, data2)
-            #deal with multiple output of our experiment
-            if (isinstance(pred_path,(list,tuple))):
-                pred_path = pred_path[0]
+            pred_path, predicted_similarity = model(data1, data2)
             loss, d = loss_function(pred_path, data1, data2, sim)
             dist_list.extend(d.cpu().data.numpy())
             loss_list.append(loss.item())
+            simiarity_list.append()
 
-    dist_list = np.array(dist_list)
+    dist_list = np.array(dist_list, predicted_similarity)
 
     # ASC
     index = np.argsort(dist_list)
@@ -87,4 +86,4 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
 
     neighbor = train_label[index]
 
-    return neighbor, np.mean(np.array(loss_list))
+    return neighbor, np.mean(np.array(loss_list)), simiarity_list

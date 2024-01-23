@@ -11,7 +11,7 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model.proposed_unet_3Plus import ProposedModel
+from model.proposed_unet_bottle_neck import ProposedModel
 
 from accelerate import Accelerator
 accelerator = Accelerator(mixed_precision="fp16")
@@ -131,7 +131,7 @@ def main(cfg: DictConfig) -> None:
             with accelerator.autocast():
                 data1, data2 = data1, data2
                 path = path
-                y = model(data1, data2)
+                y = model(data1, data2)[0] # 0 for predicted path, 1 for predcited simiarity from the bottle neck.
                 loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
             accelerator.backward(loss)
             optimizer.step()
@@ -144,7 +144,7 @@ def main(cfg: DictConfig) -> None:
             for data1, data2, path, _ in tqdm(val_loader):
                 with accelerator.autocast():
                     path = path
-                    y = model(data1, data2)
+                    y = model(data1, data2)[0]
                     loss = loss_function(
                         F.softmax(y, dim=2), F.softmax(path, dim=2))
                 val_losses.append(loss.item())

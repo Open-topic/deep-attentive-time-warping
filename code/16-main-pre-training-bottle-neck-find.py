@@ -8,28 +8,22 @@ import torch.optim as optim
 import torchinfo
 from tqdm import tqdm
 import time
-import glob
 
 from utilities import *
-from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
+from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
 from model.proposed_unet_bottle_neck import ProposedModel
-from loss import ContrastiveLoss
-from eval import kNN
-#from eval import kNNMixed
-
-
-log = logging.getLogger(__name__)
-use_amp = True
-scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
-#device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 from accelerate import Accelerator
 accelerator = Accelerator(mixed_precision="fp16")
 device_type = accelerator.device
 
 
-# @ hydra.main(config_path='conf', config_name='pre_training')
-@ hydra.main(config_path='conf', config_name='metric_learning')
+log = logging.getLogger(__name__)
+log.setLevel(level=logging.NOTSET)
+
+use_amp = True
+
+@ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
     fix_seed(cfg.seed)
     cwd = hydra.utils.get_original_cwd()+'/'
@@ -43,12 +37,8 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s_%s/' % (str(cfg.dataset.ID).zfill(3),
                                dataset.dataset_name)
     make_folder(path=result_path)
-    pre_trained_model_path = result_path+'pre_training/'
-    result_path += 'metric_learning/'
+    result_path += 'finding_batch_size/'
     make_folder(path=result_path)
-    if not cfg.pre_training:
-        result_path += 'wo_pre_training/'
-        make_folder(result_path)
     result_path += '%s' % dataset.dataset_name
 
     # log saved at result folder
@@ -80,27 +70,20 @@ def main(cfg: DictConfig) -> None:
 
     # define model & optimizer & loss function
     model = ProposedModel(input_ch=dataset.channel)
-
     try:
-        torchinfo.summary(model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+        model_summary = torchinfo.summary(
+            model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
+        log.debug(model_summary)
+
     except:
         print('cannot show model summary')
 
-    torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
-    if cfg.pre_training:
-        load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
-        log.info('pre-trained model loading...')
-        log.info('pre-trained model: '+load_model_path)
-        model.load_state_dict(torch.load(
-            load_model_path, map_location=cfg.device))
-
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
-    loss_function = ContrastiveLoss(cfg.tau)
+    loss_function = nn.MSELoss()
 
     # make data loader
     # train
-    train_dataset = DatasetMetricLearning(dataset)
+    train_dataset = DatasetPreTraining(dataset, 'train', cfg)
     if cfg.train_loader_balance:
         train_batch_sampler = BalancedBatchSampler(
             dataset, 'train', cfg.positive_ration, cfg.negative_ration, cfg)
@@ -110,68 +93,73 @@ def main(cfg: DictConfig) -> None:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of train_loader: %d' % len(train_loader))
+
+    # val
+    val_dataset = DatasetPreTraining(dataset, 'val', cfg)
+    if cfg.val_loader_balance:
+        val_batch_sampler = BalancedBatchSampler(
+            dataset, 'val', cfg.positive_ration, cfg.negative_ration, cfg)
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset, batch_sampler=val_batch_sampler, num_workers=cfg.num_workers)
+    else:
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
+    log.info('Length of val_loader: %d' % len(val_loader))
     log.info('Batch size: {}'.format(cfg.batch_size))
+
+    # train
+    date = get_date()
+    log.info('data: '+date)
+    save_name = '_%s_lr_%s' % (date, cfg.lr)
+    log.info('save_name: '+save_name)
+    training_curve_loss = TrainingCurve(
+        'loss', result_path+save_name, cfg)
+    save_model = SaveModel('loss', 'less', result_path+save_name, cfg)
 
     model = model.to(device_type)
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    val_loader = accelerator.prepare_data_loader(val_loader)
 
-    # train
-    if not cfg.test_only:
-        date = get_date()
-        log.info('data: '+date)
-        save_name = '_%s_lr_%s' % (date, cfg.lr)
-        log.info('save_name: '+save_name)
-        training_curve_loss = TrainingCurve('loss', result_path+save_name, cfg)
-        training_curve_ER = TrainingCurve('ER', result_path+save_name, cfg)
-        save_model = SaveModel('ER', 'less', result_path+save_name, cfg)
+    epoch = 0
+    fix_seed(cfg.seed)
 
-        epoch = 0
-        fix_seed(cfg.seed)
-        while epoch < cfg.epoch:
-            # train
+    # Find the correct batch_size via power method
+    for power in range(20):
+        data1, data2, path, sim = train_dataset.__getitem__(0)
+        data_shape = list(data1.shape)
+        path_shape = list(path.shape)
+        power_batch_size = 2**power
+        data_shape.insert(0,power_batch_size)
+        path_shape.insert(0,power_batch_size)
+        print("data_shape",data_shape)
+        print("path_shape",path_shape)
+        find_batch_size = 2**power
+        cfg.batch_size = find_batch_size
+        dataset = get_UCRdataset(cwd, cfg)
+        train_dataset = DatasetPreTraining(dataset, 'train', cfg)  
+        try:
             model.train()
             train_losses = []
             epoch_start_time = time.time()
-            for data1, data2, sim in tqdm(train_loader):
-                optimizer.zero_grad() # clear grad
+            print("tried power =", power)
+            for _ in range(5):
+                optimizer.zero_grad()
+                data1 = torch.rand(data_shape).to(accelerator.device)
+                data2 = torch.rand(data_shape).to(accelerator.device)
+                path = torch.rand(path_shape).to(accelerator.device)
+                print("check point")
                 with accelerator.autocast():
                     y = model(data1, data2)[0]
-                    loss, _ = loss_function(y, data1, data2, sim)
-                    loss = loss.cuda()
+                    loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
                 accelerator.backward(loss)
                 optimizer.step()
-
-                # optimizer.step()
-                # optimizer.zero_grad()
                 train_losses.append(loss.item())
-
-            # val
-            model.eval()
-            #val_ER, val_loss, _, _ = kNNMixed.kNNMixed(model, dataset, 'val', cfg)
-            val_ER, val_loss, _, _ = kNN(model, dataset, 'val', cfg)
-
-            epoch_end_time = time.time()
-            per_epoch_ptime = epoch_end_time - epoch_start_time
-
-            train_loss = torch.mean(torch.FloatTensor(train_losses)).item()
-            training_curve_loss.save(
-                train_value=train_loss, val_value=val_loss)
-            training_curve_ER.save(val_value=val_ER)
-            save_model.save(model, val_ER)
-            log.info('[%d/%d]-ptime: %.2f, train loss: %.4f, val loss: %.4f, val ER: %.4f'
-                     % ((epoch + 1), cfg.epoch, per_epoch_ptime, train_loss, val_loss, val_ER))
-            epoch += 1
-
-    # test
-    load_model_path = sorted(glob.glob(result_path+'*.pkl'))[-1]
-    log.info('test model loading...')
-    log.info('test model: '+load_model_path)
-    model.load_state_dict(torch.load(
-        load_model_path, map_location=cfg.device))
-    # test_ER, test_loss, pred, neighbor = kNNMixed.kNNMixed(model, dataset, 'test', cfg)
-    test_ER, test_loss, pred, neighbor = kNN(model, dataset, 'test', cfg)
-    log.info('test loss: %.4f, test ER: %.4f' % (test_loss, test_ER))
-
+                
+                break
+        except Exception as error:
+            print(error)
+            print("power: ", power-1)
+            break
 
 if __name__ == '__main__':
     main()

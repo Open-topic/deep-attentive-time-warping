@@ -135,7 +135,7 @@ def main(cfg: DictConfig) -> None:
             for data1, data2, sim in tqdm(train_loader):
                 optimizer.zero_grad() # clear grad
                 with accelerator.autocast():
-                    y = model(data1, data2)[0]
+                    y = model(data1, data2)
                     loss, _ = loss_function(y, data1, data2, sim)
                     loss = loss.cuda()
                 accelerator.backward(loss)
