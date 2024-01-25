@@ -27,7 +27,7 @@ def kNN(model, dataset, val_or_test, cfg):
         loss_list.append(loss)
 
     for i in range(test_data.shape[0]):
-        result = neighbor_list[i][:cfg.kNN_k]
+        result = neighbor_list[i][:(cfg.kNN_k*2)+1]
         c = collections.Counter(result)
         pred = c.most_common()[0][0]
         pred_list.append(pred)
@@ -56,11 +56,13 @@ class TestDataset(torch.utils.data.Dataset):
 
         return data1, data2, sim
 
+def countList(lst1, lst2):
+    return [sub[item] for item in range(len(lst2))
+                      for sub in [lst1, lst2]]
 
 def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     dist_list = []
     loss_list = []
-    simiarity_list = []
 
     test_dataset = TestDataset(test_data, test_label, train_data, train_label)
     test_loader = torch.utils.data.DataLoader(
@@ -78,15 +80,19 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
             simiarity_list.extend(predicted_similarity)
 
     dist_list = np.array(dist_list)
-    simiarity_list = np.array(simiarity_list)
 
     # ASC
     index = np.argsort(dist_list)
-    index_by_similarity = np.argsort(simiarity_list)
+    # DESC
+    index_by_similarity = np.argsort(simiarity_list)[::-1]
     # DESC
     # index = np.argsort(dist_list)[::-1]
 
     neighbor = train_label[index]
     neighbor_by_simiarity = train_label[index_by_similarity]
 
-    return neighbor, np.mean(np.array(loss_list)), simiarity_list
+    assert neighbor.size == neighbor_by_simiarity.size
+    final_neighbor = countList(neighbor, neighbor_by_simiarity)
+
+
+    return final_neighbor, np.mean(np.array(loss_list))

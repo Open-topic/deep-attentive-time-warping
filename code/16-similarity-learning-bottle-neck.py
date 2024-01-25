@@ -113,6 +113,8 @@ def main(cfg: DictConfig) -> None:
     log.info('Batch size: {}'.format(cfg.batch_size))
 
     model = model.to(device_type)
+    # Freeze and require no grade on everything except the projector
+    model = ...
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
 
     # train
@@ -135,9 +137,12 @@ def main(cfg: DictConfig) -> None:
             for data1, data2, sim in tqdm(train_loader):
                 optimizer.zero_grad() # clear grad
                 with accelerator.autocast():
-                    y = model(data1, data2)
-                    loss, _ = loss_function(y, data1, data2, sim)
-                    loss = loss.cuda()
+                    _, predicted_similarity = model(data1, data2)
+                    # BCE loss for simiarity
+                    # loss, _ = loss_function(y, data1, data2, sim)
+                    BCELoss_loss = nn.BCELoss()
+                    loss = BCELoss_loss()
+                    loss = loss.cuda(predicted_similarity, sim)
                 accelerator.backward(loss)
                 optimizer.step()
 
