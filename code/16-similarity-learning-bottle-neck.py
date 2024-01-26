@@ -161,7 +161,7 @@ def main(cfg: DictConfig) -> None:
             # val
             model.eval()
             #val_ER, val_loss, _, _ = kNNMixed.kNNMixed(model, dataset, 'val', cfg)
-            val_ER, val_loss, _, _ = kNN(model, dataset, 'val', cfg)
+            val_ER, val_loss, _, _ = kNN_Ensemble(model, dataset, 'val', cfg)
 
             epoch_end_time = time.time()
             per_epoch_ptime = epoch_end_time - epoch_start_time
