@@ -14,7 +14,7 @@ from utilities import *
 from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
 from model.proposed_unet_bottle_neck import ProposedModel
 from loss import ContrastiveLoss
-from eval import kNN
+from eval import kNN_Ensemble
 #from eval import kNNMixed
 
 
@@ -43,8 +43,8 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s_%s/' % (str(cfg.dataset.ID).zfill(3),
                                dataset.dataset_name)
     make_folder(path=result_path)
-    pre_trained_model_path = result_path+'pre_training/'
-    result_path += 'metric_learning/'
+    pre_trained_model_path = result_path+'metric_learning/'
+    result_path += 'similarity_learning/'
     make_folder(path=result_path)
     if not cfg.pre_training:
         result_path += 'wo_pre_training/'
@@ -90,8 +90,8 @@ def main(cfg: DictConfig) -> None:
         model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
     if cfg.pre_training:
         load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
-        log.info('pre-trained model loading...')
-        log.info('pre-trained model: '+load_model_path)
+        log.info('metric-trained model loading...')
+        log.info('metric-trained model: '+load_model_path)
         model.load_state_dict(torch.load(
             load_model_path, map_location=cfg.device))
 
@@ -114,7 +114,13 @@ def main(cfg: DictConfig) -> None:
 
     model = model.to(device_type)
     # Freeze and require no grade on everything except the projector
-    model = ...
+    # Freeze everything
+    for param in model.parameters():
+        param.requires_grad = False
+    # Unfreeze weight and bias of the projector
+    for param in model.unet.projector.parameters():
+        param.requires_grad = True
+
     model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
 
     # train
@@ -137,6 +143,7 @@ def main(cfg: DictConfig) -> None:
             for data1, data2, sim in tqdm(train_loader):
                 optimizer.zero_grad() # clear grad
                 with accelerator.autocast():
+                    # We only care about the projector and predicted simiarity for now
                     _, predicted_similarity = model(data1, data2)
                     # BCE loss for simiarity
                     # loss, _ = loss_function(y, data1, data2, sim)
@@ -174,7 +181,7 @@ def main(cfg: DictConfig) -> None:
     model.load_state_dict(torch.load(
         load_model_path, map_location=cfg.device))
     # test_ER, test_loss, pred, neighbor = kNNMixed.kNNMixed(model, dataset, 'test', cfg)
-    test_ER, test_loss, pred, neighbor = kNN(model, dataset, 'test', cfg)
+    test_ER, test_loss, pred, neighbor = kNN_Ensemble(model, dataset, 'test', cfg)
     log.info('test loss: %.4f, test ER: %.4f' % (test_loss, test_ER))
 
 

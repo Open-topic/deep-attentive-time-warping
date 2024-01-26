@@ -5,7 +5,7 @@ import collections
 from loss import ContrastiveLoss
 
 
-def kNN(model, dataset, val_or_test, cfg):
+def kNN_Ensemble(model, dataset, val_or_test, cfg):
     model.eval()
     if val_or_test == 'val':
         test_data, test_label = dataset.val_data, dataset.val_label
