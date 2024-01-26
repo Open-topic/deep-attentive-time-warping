@@ -147,9 +147,10 @@ def main(cfg: DictConfig) -> None:
                     _, predicted_similarity = model(data1, data2)
                     # BCE loss for simiarity
                     # loss, _ = loss_function(y, data1, data2, sim)
-                    BCELoss_loss = nn.BCELoss()
-                    loss = BCELoss_loss()
-                    loss = loss.cuda(predicted_similarity, sim)
+                    BCEWithLogits_Loss = nn.BCEWithLogitsLoss()
+                    predicted_similarity = torch.squeeze(predicted_similarity, -1)
+                    loss = BCEWithLogits_Loss(predicted_similarity, sim)
+                    loss = loss.cuda()
                 accelerator.backward(loss)
                 optimizer.step()
 
