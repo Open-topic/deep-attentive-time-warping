@@ -148,6 +148,10 @@ def main(cfg: DictConfig) -> None:
                     # BCE loss for simiarity
                     # loss, _ = loss_function(y, data1, data2, sim)
                     BCEWithLogits_Loss = nn.BCEWithLogitsLoss()
+                    # label smoothening
+                    eps = 0.1
+                    sim = sim * (1 - eps) + (eps / 2)
+
                     predicted_similarity = torch.squeeze(predicted_similarity, -1)
                     loss = BCEWithLogits_Loss(predicted_similarity, sim)
                     loss = loss.cuda()

@@ -6,7 +6,8 @@ import torch
 from .unet_parts import *
 
 class UNet_bottle_neck(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=False):
+    def __init__(self, n_channels, n_classes, bilinear=True):
+        #According to our experiment bilinear interpolation for upsampling seem to be more powerful.
         super(UNet_bottle_neck, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
