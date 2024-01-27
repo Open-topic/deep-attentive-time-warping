@@ -28,6 +28,7 @@ def kNN_Ensemble(model, dataset, val_or_test, cfg):
 
     for i in range(test_data.shape[0]):
         result = neighbor_list[i][:(cfg.kNN_k*2)+1]
+        # print("result: ",result)
         c = collections.Counter(result)
         pred = c.most_common()[0][0]
         pred_list.append(pred)
@@ -75,6 +76,8 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
             data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
             sim = sim.to(cfg.device)
             pred_path, predicted_similarity = model(data1, data2)
+            predicted_similarity = torch.nn.functional.sigmoid(predicted_similarity)
+            predicted_similarity = torch.squeeze(predicted_similarity, 1)
             loss, d = loss_function(pred_path, data1, data2, sim)
             dist_list.extend(d.cpu().data.numpy())
             loss_list.append(loss.item())
