@@ -26,7 +26,7 @@ class UNet_bottle_neck(nn.Module):
         self.outc = OutConv(64, n_classes)
 
         self.bottle_neck_pooling = nn.AdaptiveAvgPool2d((1,1))
-        self.projector = nn.Linear(1024/factor,1)
+        self.projector = nn.Linear(int(1024/factor),1)
 
     def forward(self, x):
         x1 = self.inc(x)
