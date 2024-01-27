@@ -63,6 +63,7 @@ def countList(lst1, lst2):
 def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     dist_list = []
     loss_list = []
+    simiarity_list = []
 
     test_dataset = TestDataset(test_data, test_label, train_data, train_label)
     test_loader = torch.utils.data.DataLoader(
