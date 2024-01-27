@@ -21,7 +21,7 @@ def kNN_Ensemble(model, dataset, val_or_test, cfg):
     pred_list = []
 
     for i in tqdm(range(test_data.shape[0])):
-        neighbor, loss, simiarity_list = cal_dist(
+        neighbor, loss = cal_dist(
             model, test_data[i], test_label[i], train_data, train_label, cfg)
         neighbor_list.append(neighbor)
         loss_list.append(loss)
