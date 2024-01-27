@@ -14,7 +14,7 @@ from utilities import *
 from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
 from model.proposed_unet_bottle_neck import ProposedModel
 from loss import ContrastiveLoss
-from eval import kNN_Ensemble
+from eval.kNN_Ensemble import kNN_Ensemble
 #from eval import kNNMixed
 
 
