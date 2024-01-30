@@ -3,7 +3,10 @@ import numpy as np
 import torch
 import collections
 from loss import ContrastiveLoss
+from visualization import mds_visualization
 
+
+alldist_list = []
 
 def kNN(model, dataset, val_or_test, cfg):
     model.eval()
@@ -33,6 +36,14 @@ def kNN(model, dataset, val_or_test, cfg):
         pred_list.append(pred)
 
     acc = sum(pred_list == test_label)/test_label.shape[0]
+
+    alldist = np.array(alldist_list)
+
+    #visualize with MDS
+    mds_visualization(alldist,train_label,test_label)
+
+
+
 
     return 1-acc, np.mean(np.array(loss_list)), np.array(pred_list), np.array(neighbor_list)
 
@@ -79,6 +90,9 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
             loss_list.append(loss.item())
 
     dist_list = np.array(dist_list)
+
+    #append dist_list to alldist_list
+    alldist_list.append(dist_list)
 
     # ASC
     index = np.argsort(dist_list)
