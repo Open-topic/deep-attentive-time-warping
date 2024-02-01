@@ -40,7 +40,7 @@ def kNN(model, dataset, val_or_test, cfg):
     alldist = np.array(alldist_list)
 
     #visualize with MDS
-    mds_visualization(alldist,train_label,test_label)
+    mds_visualization(alldist,train_label,test_label,pred_list)
 
 
 

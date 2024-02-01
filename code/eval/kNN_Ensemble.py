@@ -3,7 +3,9 @@ import numpy as np
 import torch
 import collections
 from loss import ContrastiveLoss
+from visualization import *
 
+alldist_similarity_list = []
 
 def kNN_Ensemble(model, dataset, val_or_test, cfg):
     model.eval()
@@ -34,6 +36,17 @@ def kNN_Ensemble(model, dataset, val_or_test, cfg):
         pred_list.append(pred)
 
     acc = sum(pred_list == test_label)/test_label.shape[0]
+
+    alldist_similarity_list = np.array(alldist_similarity_list)
+    
+
+    modified_list = [str(num) + "_similarity" for num in test_label]
+    test_label = test_label + modified_list
+
+
+    #visualize with MDS
+    mds_visualization(alldist_similarity_list,train_label,test_label,pred_list)
+
 
     return 1-acc, np.mean(np.array(loss_list)), np.array(pred_list), np.array(neighbor_list)
 
@@ -85,6 +98,11 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
 
     dist_list = np.array(dist_list)
 
+    #append dist_list to alldist_list
+    alldist_similarity_list.append(dist_list)
+    alldist_similarity_list.append(simiarity_list)
+
+
     # ASC
     index = np.argsort(dist_list)
     # DESC
@@ -94,6 +112,7 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
 
     neighbor = train_label[index]
     neighbor_by_simiarity = train_label[index_by_similarity]
+
 
     assert neighbor.size == neighbor_by_simiarity.size
     final_neighbor = countList(neighbor, neighbor_by_simiarity)
