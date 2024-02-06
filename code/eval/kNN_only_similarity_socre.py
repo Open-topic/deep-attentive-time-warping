@@ -5,8 +5,7 @@ import collections
 from loss import ContrastiveLoss
 from visualization import *
 
-alldist_similarity_list = []
-
+all_similarity_list = []
 
 def kNN_Ensemble(model, dataset, val_or_test, cfg):
     model.eval()
@@ -24,15 +23,13 @@ def kNN_Ensemble(model, dataset, val_or_test, cfg):
     pred_list = []
 
     for i in tqdm(range(test_data.shape[0])):
-    # for i in range(1):
         neighbor, loss = cal_dist(
             model, test_data[i], test_label[i], train_data, train_label, cfg)
         neighbor_list.append(neighbor)
         loss_list.append(loss)
 
     for i in range(test_data.shape[0]):
-    # for i in range(1):
-        result = neighbor_list[i][:(cfg.kNN_k*2)+1]
+        result = neighbor_list[i][:(cfg.kNN_k)]
         # print("result: ",result)
         c = collections.Counter(result)
         pred = c.most_common()[0][0]
@@ -40,19 +37,12 @@ def kNN_Ensemble(model, dataset, val_or_test, cfg):
 
     acc = sum(pred_list == test_label)/test_label.shape[0]
 
-    alldist = np.array(alldist_similarity_list)
+    all_similarity = np.array(all_similarity_list)
     
 
-    modified_list = [str(num) + "_similarity" for num in train_label]
-
-    # Convert the NumPy array to a Python list
-    train_label = train_label.tolist()
-
-    train_label = train_label + modified_list
-
-
+    
     #visualize with MDS
-    mds_visualization(alldist,train_label,test_label,pred_list)
+    mds_visualization(all_similarity,train_label,test_label,pred_list)
 
 
     return 1-acc, np.mean(np.array(loss_list)), np.array(pred_list), np.array(neighbor_list)
@@ -102,9 +92,14 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
             dist_list.extend(d.cpu().data.numpy())
             loss_list.append(loss.item())
             simiarity_list.extend(predicted_similarity.cpu().data.numpy())
-
     
-    alldist_similarity_list.append(dist_list + simiarity_list)
+   
+    
+
+    #append dist_list to allsimilarity_list
+    all_similarity_list.append(simiarity_list)
+   
+
 
     # ASC
     index = np.argsort(dist_list)
@@ -113,12 +108,12 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     # DESC
     # index = np.argsort(dist_list)[::-1]
 
-    neighbor = train_label[index]
+    # neighbor = train_label[index]
     neighbor_by_simiarity = train_label[index_by_similarity]
 
 
-    assert neighbor.size == neighbor_by_simiarity.size
-    final_neighbor = countList(neighbor, neighbor_by_simiarity)
+    # assert neighbor.size == neighbor_by_simiarity.size
+    # final_neighbor = countList(neighbor, neighbor_by_simiarity)
 
 
-    return final_neighbor, np.mean(np.array(loss_list))
+    return neighbor_by_simiarity, np.mean(np.array(loss_list))

@@ -10,10 +10,13 @@ def mds_visualization(alldist,train_label,test_label,predict):
     # Create DataFrame
     df = pd.DataFrame(alldist, columns=train_label, index=test_label)
 
+    # add predicted_label column to df 
     df['predict'] = predict
 
     df.columns = df.columns.astype(str)
     
+    # Save DataFrame to a CSV file
+    df.to_csv('/content/drive/MyDrive/deep-attentive-time-warping/data_input_to_MDS.csv', index=True)
     
     # Perform multi-dimensional scaling
     mds = MDS(random_state=0)
@@ -28,7 +31,7 @@ def mds_visualization(alldist,train_label,test_label,predict):
     plt.ylabel("MDS Dimension 2")
     
     #save image
-    filepath = '/content/drive/MyDrive/deep-attentive-time-warping/mds_visualization_dtw.png'
+    filepath = '/content/drive/MyDrive/deep-attentive-time-warping/mds_visualization.png'
     plt.savefig(filepath,dpi=300)
 
     print("Image saved at:", filepath)

@@ -15,7 +15,7 @@ device: 'cuda:0'
 
 pre_training: True
 lr: 0.0001
-batch_size: 30
+batch_size: 64
 cal_batch_size: True
 num_workers: 2
 positive_ration: 1
@@ -27,5 +27,5 @@ sample_train_data: True
 tau: 1
 kNN_k: 3
 
-test_only: False
+test_only: True
 
