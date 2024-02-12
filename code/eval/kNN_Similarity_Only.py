@@ -27,7 +27,7 @@ def kNN_Similarity_Only(model, dataset, val_or_test, cfg):
         loss_list.append(loss)
 
     for i in range(test_data.shape[0]):
-        result = neighbor_list[i][:(cfg.kNN_k*2)+1]
+        result = neighbor_list[i][:cfg.kNN_k]
         # print("result: ",result)
         c = collections.Counter(result)
         pred = c.most_common()[0][0]

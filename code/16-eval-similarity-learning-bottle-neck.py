@@ -131,7 +131,7 @@ def main(cfg: DictConfig) -> None:
         load_model_path, map_location=cfg.device))
     model.eval()
     # test_ER, test_loss, pred, neighbor = kNNMixed.kNNMixed(model, dataset, 'test', cfg)
-    test_ER, test_loss, pred, neighbor = kNN_Similarity_Only(model, dataset, 'test', cfg)
+    test_ER, test_loss, pred, neighbor = kNN_Similarity_Only.kNN_Similarity_Only(model, dataset, 'test', cfg)
     log.info('test loss: %.4f, test ER: %.4f' % (test_loss, test_ER))
 
 if __name__ == '__main__':
