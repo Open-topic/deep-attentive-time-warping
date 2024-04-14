@@ -2,17 +2,17 @@
 
 import torch.nn.functional as F
 
-from .unet_parts import *
+from .fft_unet_parts import *
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=False):
+    def __init__(self, n_channels, n_classes, bilinear=True):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
 
-        self.inc = DoubleConv(n_channels, 64)
+        self.inc = FFT_DoubleConv(n_channels, 64)
         self.down1 = Down(64, 128)
         self.down2 = Down(128, 256)
         self.down3 = Down(256, 512)

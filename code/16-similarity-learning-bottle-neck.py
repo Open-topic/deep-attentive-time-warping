@@ -12,12 +12,20 @@ import glob
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
-from model import ProposedModel
+from model.proposed_unet_bottle_neck import ProposedModel
 from loss import ContrastiveLoss
-from eval import kNN
+from eval.kNN_Ensemble import kNN_Ensemble
+#from eval import kNNMixed
 
 
 log = logging.getLogger(__name__)
+use_amp = True
+scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+#device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+from accelerate import Accelerator
+accelerator = Accelerator(mixed_precision="fp16")
+device_type = accelerator.device
 
 
 # @ hydra.main(config_path='conf', config_name='pre_training')
@@ -35,8 +43,8 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s_%s/' % (str(cfg.dataset.ID).zfill(3),
                                dataset.dataset_name)
     make_folder(path=result_path)
-    pre_trained_model_path = result_path+'pre_training/'
-    result_path += 'metric_learning/'
+    pre_trained_model_path = result_path+'metric_learning/'
+    result_path += 'similarity_learning/'
     make_folder(path=result_path)
     if not cfg.pre_training:
         result_path += 'wo_pre_training/'
@@ -71,13 +79,19 @@ def main(cfg: DictConfig) -> None:
         exit()
 
     # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
+    model = ProposedModel(input_ch=dataset.channel)
+
+    try:
+        torchinfo.summary(model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+    except:
+        print('cannot show model summary')
+
     torchinfo.summary(
         model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
     if cfg.pre_training:
         load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
-        log.info('pre-trained model loading...')
-        log.info('pre-trained model: '+load_model_path)
+        log.info('metric-trained model loading...')
+        log.info('metric-trained model: '+load_model_path)
         model.load_state_dict(torch.load(
             load_model_path, map_location=cfg.device))
 
@@ -96,6 +110,18 @@ def main(cfg: DictConfig) -> None:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of train_loader: %d' % len(train_loader))
+    log.info('Batch size: {}'.format(cfg.batch_size))
+
+    model = model.to(device_type)
+    # Freeze and require no grade on everything except the projector
+    # Freeze everything
+    for param in model.parameters():
+        param.requires_grad = False
+    # Unfreeze weight and bias of the projector
+    for param in model.unet.projector.parameters():
+        param.requires_grad = True
+
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
 
     # train
     if not cfg.test_only:
@@ -115,18 +141,31 @@ def main(cfg: DictConfig) -> None:
             train_losses = []
             epoch_start_time = time.time()
             for data1, data2, sim in tqdm(train_loader):
-                data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-                sim = sim.to(cfg.device)
-                y = model(data1, data2)
-                loss, _ = loss_function(y, data1, data2, sim)
-                loss.backward()
+                optimizer.zero_grad() # clear grad
+                with accelerator.autocast():
+                    # We only care about the projector and predicted simiarity for now
+                    _, predicted_similarity = model(data1, data2)
+                    # BCE loss for simiarity
+                    # loss, _ = loss_function(y, data1, data2, sim)
+                    BCEWithLogits_Loss = nn.BCEWithLogitsLoss()
+                    # label smoothening
+                    eps = 0.1
+                    sim = sim * (1 - eps) + (eps / 2)
+
+                    predicted_similarity = torch.squeeze(predicted_similarity, -1)
+                    loss = BCEWithLogits_Loss(predicted_similarity, sim)
+                    loss = loss.cuda()
+                accelerator.backward(loss)
                 optimizer.step()
-                optimizer.zero_grad()
+
+                # optimizer.step()
+                # optimizer.zero_grad()
                 train_losses.append(loss.item())
 
             # val
             model.eval()
-            val_ER, val_loss, _, _ = kNN(model, dataset, 'val', cfg)
+            #val_ER, val_loss, _, _ = kNNMixed.kNNMixed(model, dataset, 'val', cfg)
+            val_ER, val_loss, _, _ = kNN_Ensemble(model, dataset, 'val', cfg)
 
             epoch_end_time = time.time()
             per_epoch_ptime = epoch_end_time - epoch_start_time
@@ -146,7 +185,8 @@ def main(cfg: DictConfig) -> None:
     log.info('test model: '+load_model_path)
     model.load_state_dict(torch.load(
         load_model_path, map_location=cfg.device))
-    test_ER, test_loss, pred, neighbor = kNN(model, dataset, 'test', cfg)
+    # test_ER, test_loss, pred, neighbor = kNNMixed.kNNMixed(model, dataset, 'test', cfg)
+    test_ER, test_loss, pred, neighbor = kNN_Ensemble(model, dataset, 'test', cfg)
     log.info('test loss: %.4f, test ER: %.4f' % (test_loss, test_ER))
 
 

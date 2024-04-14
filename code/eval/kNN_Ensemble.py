@@ -5,7 +5,7 @@ import collections
 from loss import ContrastiveLoss
 
 
-def kNN(model, dataset, val_or_test, cfg):
+def kNN_Ensemble(model, dataset, val_or_test, cfg):
     model.eval()
     if val_or_test == 'val':
         test_data, test_label = dataset.val_data, dataset.val_label
@@ -27,7 +27,8 @@ def kNN(model, dataset, val_or_test, cfg):
         loss_list.append(loss)
 
     for i in range(test_data.shape[0]):
-        result = neighbor_list[i][:cfg.kNN_k]
+        result = neighbor_list[i][:(cfg.kNN_k*2)+1]
+        # print("result: ",result)
         c = collections.Counter(result)
         pred = c.most_common()[0][0]
         pred_list.append(pred)
@@ -56,10 +57,14 @@ class TestDataset(torch.utils.data.Dataset):
 
         return data1, data2, sim
 
+def countList(lst1, lst2):
+    return [sub[item] for item in range(len(lst2))
+                      for sub in [lst1, lst2]]
 
 def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     dist_list = []
     loss_list = []
+    simiarity_list = []
 
     test_dataset = TestDataset(test_data, test_label, train_data, train_label)
     test_loader = torch.utils.data.DataLoader(
@@ -70,22 +75,28 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
         for i, (data1, data2, sim) in enumerate(test_loader):
             data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
             sim = sim.to(cfg.device)
-            pred_path = model(data1, data2)
-            #deal with multiple output of our experiment
-            if (isinstance(pred_path,(list,tuple))):
-                pred_path = pred_path[0]
+            pred_path, predicted_similarity = model(data1, data2)
+            predicted_similarity = torch.nn.functional.sigmoid(predicted_similarity)
+            predicted_similarity = torch.squeeze(predicted_similarity, 1)
             loss, d = loss_function(pred_path, data1, data2, sim)
             dist_list.extend(d.cpu().data.numpy())
             loss_list.append(loss.item())
+            simiarity_list.extend(predicted_similarity.cpu().data.numpy())
 
     dist_list = np.array(dist_list)
 
     # ASC
     index = np.argsort(dist_list)
     # DESC
+    index_by_similarity = np.argsort(simiarity_list)[::-1]
+    # DESC
     # index = np.argsort(dist_list)[::-1]
 
     neighbor = train_label[index]
+    neighbor_by_simiarity = train_label[index_by_similarity]
 
-    return neighbor, np.mean(np.array(loss_list))
-    
+    assert neighbor.size == neighbor_by_simiarity.size
+    final_neighbor = countList(neighbor, neighbor_by_simiarity)
+
+
+    return final_neighbor, np.mean(np.array(loss_list))

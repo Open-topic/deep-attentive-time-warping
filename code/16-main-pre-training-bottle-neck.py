@@ -11,11 +11,17 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model import ProposedModel
+from model.proposed_unet_bottle_neck import ProposedModel
+
+from accelerate import Accelerator
+accelerator = Accelerator(mixed_precision="fp16")
+device_type = accelerator.device
 
 
 log = logging.getLogger(__name__)
-
+use_amp = True
+scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+#device_type = accelerator.device
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -63,10 +69,14 @@ def main(cfg: DictConfig) -> None:
         exit()
 
     # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
-    model_summary = torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
-    log.debug(model_summary)
+    model = ProposedModel(input_ch=dataset.channel)
+    try:
+        model_summary = torchinfo.summary(
+            model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
+        log.debug(model_summary)
+        print(model_summary)
+    except:
+        print('cannot show model summary')
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
@@ -94,6 +104,7 @@ def main(cfg: DictConfig) -> None:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of val_loader: %d' % len(val_loader))
+    log.info('Batch size: {}'.format(cfg.batch_size))
 
     # train
     date = get_date()
@@ -104,6 +115,10 @@ def main(cfg: DictConfig) -> None:
         'loss', result_path+save_name, cfg)
     save_model = SaveModel('loss', 'less', result_path+save_name, cfg)
 
+    model = model.to(device_type)
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    val_loader = accelerator.prepare_data_loader(val_loader)
+
     epoch = 0
     fix_seed(cfg.seed)
     while epoch < cfg.epoch:
@@ -112,14 +127,14 @@ def main(cfg: DictConfig) -> None:
         train_losses = []
         epoch_start_time = time.time()
         for data1, data2, path, _ in tqdm(train_loader):
-            data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-            path = path.to(cfg.device)
-            y = model(data1, data2)
-            loss = loss_function(
-                F.softmax(y, dim=2), F.softmax(path, dim=2))
-            loss.backward()
-            optimizer.step()
             optimizer.zero_grad()
+            with accelerator.autocast():
+                data1, data2 = data1, data2
+                path = path
+                y = model(data1, data2)[0] # 0 for predicted path, 1 for predcited simiarity from the bottle neck.
+                loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
+            accelerator.backward(loss)
+            optimizer.step()
             train_losses.append(loss.item())
 
         # val
@@ -127,11 +142,11 @@ def main(cfg: DictConfig) -> None:
         val_losses = []
         with torch.no_grad():
             for data1, data2, path, _ in tqdm(val_loader):
-                data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-                path = path.to(cfg.device)
-                y = model(data1, data2)
-                loss = loss_function(
-                    F.softmax(y, dim=2), F.softmax(path, dim=2))
+                with accelerator.autocast():
+                    path = path
+                    y = model(data1, data2)[0]
+                    loss = loss_function(
+                        F.softmax(y, dim=2), F.softmax(path, dim=2))
                 val_losses.append(loss.item())
 
         epoch_end_time = time.time()

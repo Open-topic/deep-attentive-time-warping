@@ -11,7 +11,7 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model import ProposedModel
+from model.bilstm_proposed import Bilstm_ProposedModel
 
 
 log = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def main(cfg: DictConfig) -> None:
         exit()
 
     # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
+    model = Bilstm_ProposedModel(input_ch=dataset.channel).to(cfg.device)
     model_summary = torchinfo.summary(
         model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
     log.debug(model_summary)

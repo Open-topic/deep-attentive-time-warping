@@ -7,3 +7,5 @@ torchinfo
 tslearn
 fastdtw
 autopep8
+hydra-core
+accelerate == 0.24.1

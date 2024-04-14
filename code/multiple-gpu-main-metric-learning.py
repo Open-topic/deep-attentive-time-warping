@@ -16,15 +16,64 @@ from model import ProposedModel
 from loss import ContrastiveLoss
 from eval import kNN
 
+import lightning as L
 
 log = logging.getLogger(__name__)
+
+def Average(lst):
+    return sum(lst) / len(lst)
 
 
 # @ hydra.main(config_path='conf', config_name='pre_training')
 @ hydra.main(config_path='conf', config_name='metric_learning')
+
+class unet(L.LightningModule):
+    def __init__(self):
+        super().__init__()
+        self.model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
+        if cfg.pre_training:
+            load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
+            log.info('pre-trained model loading...')
+            log.info('pre-trained model: '+load_model_path)
+            model.load_state_dict(torch.load(
+                self.load_model_path, map_location=cfg.device))
+        
+        self.train_losses = []
+
+    def training_step(self, batch, batch_idx):
+        data1, data2, sim = batch
+        y = self.model(data1, data2)
+        loss, _ = loss_function(y, data1, data2, sim)
+        self.train_losses.append(loss.item())
+        return loss
+        
+    def configure_optimizers(self):
+        return optim.AdamW(self.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
+    
+    def on_train_epoch_end(self):
+
+        val_ER, val_loss, _, _ = kNN(self.model, dataset, 'val', cfg)
+
+        epoch_end_time = time.time()
+        # per_epoch_ptime = epoch_end_time - epoch_start_time
+
+        train_loss = torch.mean(torch.FloatTensor(self.train_losses)).item()
+        training_curve_loss.save(
+            train_value=train_loss, val_value=val_loss)
+        training_curve_ER.save(val_value=val_ER)
+        save_model.save(model, val_ER)
+        # log.info('[%d/%d]-ptime: %.2f, train loss: %.4f, val loss: %.4f, val ER: %.4f'
+        #      % ((epoch + 1), cfg.epoch, per_epoch_ptime, train_loss, val_loss, val_ER))
+        self.log("train_loss", train_loss)
+        self.log("val_loss", val_loss)
+        self.log("val_ER", val_ER)
+
+@ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
-    fix_seed(cfg.seed)
+    global dataset
+    global cwd
     cwd = hydra.utils.get_original_cwd()+'/'
+    fix_seed(cfg.seed)
 
     # load data (split train data & standardizarion)
     dataset = get_UCRdataset(cwd, cfg)
@@ -35,6 +84,10 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s_%s/' % (str(cfg.dataset.ID).zfill(3),
                                dataset.dataset_name)
     make_folder(path=result_path)
+
+    pre_trained_model_path = result_path+'pre_training/'
+    result_path += 'metric_learning/'
+
     pre_trained_model_path = result_path+'pre_training/'
     result_path += 'metric_learning/'
     make_folder(path=result_path)
@@ -70,20 +123,6 @@ def main(cfg: DictConfig) -> None:
         log.info('It is not executed.')
         exit()
 
-    # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
-    torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
-    if cfg.pre_training:
-        load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
-        log.info('pre-trained model loading...')
-        log.info('pre-trained model: '+load_model_path)
-        model.load_state_dict(torch.load(
-            load_model_path, map_location=cfg.device))
-
-    optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
-    loss_function = ContrastiveLoss(cfg.tau)
-
     # make data loader
     # train
     train_dataset = DatasetMetricLearning(dataset)
@@ -97,58 +136,19 @@ def main(cfg: DictConfig) -> None:
             train_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of train_loader: %d' % len(train_loader))
 
-    # train
-    if not cfg.test_only:
-        date = get_date()
-        log.info('data: '+date)
-        save_name = '_%s_lr_%s' % (date, cfg.lr)
-        log.info('save_name: '+save_name)
-        training_curve_loss = TrainingCurve('loss', result_path+save_name, cfg)
-        training_curve_ER = TrainingCurve('ER', result_path+save_name, cfg)
-        save_model = SaveModel('ER', 'less', result_path+save_name, cfg)
-
-        epoch = 0
-        fix_seed(cfg.seed)
-        while epoch < cfg.epoch:
-            # train
-            model.train()
-            train_losses = []
-            epoch_start_time = time.time()
-            for data1, data2, sim in tqdm(train_loader):
-                data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-                sim = sim.to(cfg.device)
-                y = model(data1, data2)
-                loss, _ = loss_function(y, data1, data2, sim)
-                loss.backward()
-                optimizer.step()
-                optimizer.zero_grad()
-                train_losses.append(loss.item())
-
-            # val
-            model.eval()
-            val_ER, val_loss, _, _ = kNN(model, dataset, 'val', cfg)
-
-            epoch_end_time = time.time()
-            per_epoch_ptime = epoch_end_time - epoch_start_time
-
-            train_loss = torch.mean(torch.FloatTensor(train_losses)).item()
-            training_curve_loss.save(
-                train_value=train_loss, val_value=val_loss)
-            training_curve_ER.save(val_value=val_ER)
-            save_model.save(model, val_ER)
-            log.info('[%d/%d]-ptime: %.2f, train loss: %.4f, val loss: %.4f, val ER: %.4f'
-                     % ((epoch + 1), cfg.epoch, per_epoch_ptime, train_loss, val_loss, val_ER))
-            epoch += 1
+    # Lightning will automatically use all available GPUs!
+    trainer = L.Trainer(max_epochs=cfg.epoch, precision=16,gradient_clip_val=2.0)
+    trainer.fit(unet(cfg), train_dataloaders=train_loader)
 
     # test
-    load_model_path = sorted(glob.glob(result_path+'*.pkl'))[-1]
+    load_model_path = sorted(glob.glob(result_path+'*.ckpt'))[-1]
     log.info('test model loading...')
     log.info('test model: '+load_model_path)
-    model.load_state_dict(torch.load(
-        load_model_path, map_location=cfg.device))
+    # model.load_state_dict(torch.load(
+    #     load_model_path, map_location=cfg.device))
+    unet.load_from_checkpoint(load_model_path)
     test_ER, test_loss, pred, neighbor = kNN(model, dataset, 'test', cfg)
     log.info('test loss: %.4f, test ER: %.4f' % (test_loss, test_ER))
-
 
 if __name__ == '__main__':
     main()

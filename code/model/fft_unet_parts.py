@@ -5,6 +5,37 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class FFT_DoubleConv(nn.Module):
+    """(convolution => [BN] => ReLU) * 2"""
+
+    def __init__(self, in_channels, out_channels, mid_channels=None):
+        super().__init__()
+        if not mid_channels:
+            mid_channels = out_channels
+
+        self.first_conv = nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1)
+        self.first_norm = nn.BatchNorm2d(mid_channels)
+        self.first_activation = nn.GELU()
+        
+        self.second_conv = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1)
+        self.second_norm = nn.BatchNorm2d(out_channels)
+        self.second_activation = nn.GELU()
+
+    def forward(self, x):
+
+        x = self.first_conv(x)
+        x = self.first_norm(x)
+        x = self.first_activation(x)
+
+        transformed_x = torch.fft.fft2(x)
+        x = x + transformed_x.real
+
+        x = self.second_conv(x)
+        x = self.second_norm(x)
+        x = self.second_activation(x)
+
+        return x
+
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
 
@@ -24,7 +55,6 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.double_conv(x)
 
-
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
@@ -32,7 +62,7 @@ class Down(nn.Module):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels)
+            FFT_DoubleConv(in_channels, out_channels)
         )
 
     def forward(self, x):
@@ -46,7 +76,6 @@ class Up(nn.Module):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
-        # Bilinear will use torch nn.Upsample to up sample instead of ConvTranspose2d.
         if bilinear:
             self.up = nn.Upsample(
                 scale_factor=2, mode='bilinear', align_corners=True)

@@ -12,7 +12,7 @@ import glob
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetMetricLearning, BalancedBatchSampler
-from model import ProposedModel
+from model.fft_proposed import fft_ProposedModel
 from loss import ContrastiveLoss
 from eval import kNN
 
@@ -71,9 +71,9 @@ def main(cfg: DictConfig) -> None:
         exit()
 
     # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
-    torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
+    model = fft_ProposedModel(input_ch=dataset.channel).to(cfg.device)
+    #torchinfo.summary(
+    #    model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device)
     if cfg.pre_training:
         load_model_path = sorted(glob.glob(pre_trained_model_path+'*.pkl'))[-1]
         log.info('pre-trained model loading...')

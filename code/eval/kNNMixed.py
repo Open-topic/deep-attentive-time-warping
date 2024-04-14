@@ -4,8 +4,13 @@ import torch
 import collections
 from loss import ContrastiveLoss
 
+#device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def kNN(model, dataset, val_or_test, cfg):
+from accelerate import Accelerator
+accelerator = Accelerator(mixed_precision="fp16")
+device_type = accelerator.device
+
+def kNNMixed(model, dataset, val_or_test, cfg):
     model.eval()
     if val_or_test == 'val':
         test_data, test_label = dataset.val_data, dataset.val_label
@@ -49,10 +54,10 @@ class TestDataset(torch.utils.data.Dataset):
         return self.len
 
     def __getitem__(self, idx):
-        data1 = torch.tensor(self.test_data).float()
-        data2 = torch.tensor(self.train_data[idx]).float()
+        data1 = torch.tensor(self.test_data)
+        data2 = torch.tensor(self.train_data[idx])
         sim = torch.tensor(
-            (self.test_label == self.train_label[idx]).astype(int)).float()
+            (self.test_label == self.train_label[idx]).astype(int))
 
         return data1, data2, sim
 
@@ -66,17 +71,16 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
         test_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers)
     loss_function = ContrastiveLoss(cfg.tau)
 
-    with torch.no_grad():
-        for i, (data1, data2, sim) in enumerate(test_loader):
-            data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-            sim = sim.to(cfg.device)
+    model = model.to(device_type)
+    model = accelerator.prepare_model(model)
+    test_loader =  accelerator.prepare_data_loader(test_loader)
+
+    for i, (data1, data2, sim) in enumerate(test_loader):
+        with accelerator.autocast():
             pred_path = model(data1, data2)
-            #deal with multiple output of our experiment
-            if (isinstance(pred_path,(list,tuple))):
-                pred_path = pred_path[0]
             loss, d = loss_function(pred_path, data1, data2, sim)
-            dist_list.extend(d.cpu().data.numpy())
-            loss_list.append(loss.item())
+        dist_list.extend(d.cpu().data.numpy())
+        loss_list.append(loss.item())
 
     dist_list = np.array(dist_list)
 
@@ -88,4 +92,3 @@ def cal_dist(model, test_data, test_label, train_data, train_label, cfg):
     neighbor = train_label[index]
 
     return neighbor, np.mean(np.array(loss_list))
-    

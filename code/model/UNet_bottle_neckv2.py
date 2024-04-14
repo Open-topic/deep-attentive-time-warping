@@ -1,13 +1,14 @@
 """ Full assembly of the parts to form the complete network """
 
 import torch.nn.functional as F
+import torch
 
 from .unet_parts import *
 
-
-class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=False):
-        super(UNet, self).__init__()
+class UNet_bottle_neck(nn.Module):
+    def __init__(self, n_channels, n_classes, bilinear=True):
+        #According to our experiment bilinear interpolation for upsampling seem to be more powerful.
+        super(UNet_bottle_neck, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
@@ -24,6 +25,9 @@ class UNet(nn.Module):
         self.up4 = Up(128, 64, bilinear)
         self.outc = OutConv(64, n_classes)
 
+        self.bottle_neck_pooling = nn.AdaptiveAvgPool2d((1,1))
+        self.projector = nn.Linear(int(1024/factor),1)
+
     def forward(self, x):
         x1 = self.inc(x)
         x2 = self.down1(x1)
@@ -35,4 +39,7 @@ class UNet(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         logits = self.outc(x)
-        return logits
+        bottle_neck_pooled = self.bottle_neck_pooling(x5) # global pool the bottleneck
+        bottle_neck_pooled = torch.squeeze(bottle_neck_pooled,(-1,-2))
+        predicted_similarity = self.projector(bottle_neck_pooled) # we use BCEWithLogitsLoss to enable safe autocast
+        return logits, predicted_similarity

@@ -11,11 +11,17 @@ import time
 
 from utilities import *
 from prepare_data import get_UCRdataset, DatasetPreTraining, BalancedBatchSampler
-from model import ProposedModel
+from model.proposed_unet_bottle_neck import ProposedModel
+
+from accelerate import Accelerator
+accelerator = Accelerator(mixed_precision="fp16")
+device_type = accelerator.device
 
 
 log = logging.getLogger(__name__)
+log.setLevel(level=logging.NOTSET)
 
+use_amp = True
 
 @ hydra.main(config_path='conf', config_name='pre_training')
 def main(cfg: DictConfig) -> None:
@@ -31,7 +37,7 @@ def main(cfg: DictConfig) -> None:
     result_path += '%s_%s/' % (str(cfg.dataset.ID).zfill(3),
                                dataset.dataset_name)
     make_folder(path=result_path)
-    result_path += 'pre_training/'
+    result_path += 'finding_batch_size/'
     make_folder(path=result_path)
     result_path += '%s' % dataset.dataset_name
 
@@ -63,10 +69,15 @@ def main(cfg: DictConfig) -> None:
         exit()
 
     # define model & optimizer & loss function
-    model = ProposedModel(input_ch=dataset.channel).to(cfg.device)
-    model_summary = torchinfo.summary(
-        model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
-    log.debug(model_summary)
+    model = ProposedModel(input_ch=dataset.channel)
+    try:
+        model_summary = torchinfo.summary(
+            model, (dataset.train_data[:1].shape, dataset.train_data[:1].shape), device=cfg.device, verbose=0)
+        log.debug(model_summary)
+
+    except:
+        print('cannot show model summary')
+
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, betas=(0.5, 0.999))
     loss_function = nn.MSELoss()
 
@@ -94,6 +105,7 @@ def main(cfg: DictConfig) -> None:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, shuffle=True)
     log.info('Length of val_loader: %d' % len(val_loader))
+    log.info('Batch size: {}'.format(cfg.batch_size))
 
     # train
     date = get_date()
@@ -104,47 +116,50 @@ def main(cfg: DictConfig) -> None:
         'loss', result_path+save_name, cfg)
     save_model = SaveModel('loss', 'less', result_path+save_name, cfg)
 
+    model = model.to(device_type)
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    val_loader = accelerator.prepare_data_loader(val_loader)
+
     epoch = 0
     fix_seed(cfg.seed)
-    while epoch < cfg.epoch:
-        # train
-        model.train()
-        train_losses = []
-        epoch_start_time = time.time()
-        for data1, data2, path, _ in tqdm(train_loader):
-            data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-            path = path.to(cfg.device)
-            y = model(data1, data2)
-            loss = loss_function(
-                F.softmax(y, dim=2), F.softmax(path, dim=2))
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            train_losses.append(loss.item())
 
-        # val
-        model.eval()
-        val_losses = []
-        with torch.no_grad():
-            for data1, data2, path, _ in tqdm(val_loader):
-                data1, data2 = data1.to(cfg.device), data2.to(cfg.device)
-                path = path.to(cfg.device)
-                y = model(data1, data2)
-                loss = loss_function(
-                    F.softmax(y, dim=2), F.softmax(path, dim=2))
-                val_losses.append(loss.item())
-
-        epoch_end_time = time.time()
-        per_epoch_ptime = epoch_end_time - epoch_start_time
-        train_loss = torch.mean(torch.FloatTensor(train_losses)).item()
-        val_loss = torch.mean(torch.FloatTensor(val_losses)).item()
-
-        training_curve_loss.save(train_value=train_loss, val_value=val_loss)
-        save_model.save(model, val_loss)
-        log.info('[%d/%d]-ptime: %.2f, train loss: %.4f, val loss: %.4f'
-                 % ((epoch + 1), cfg.epoch, per_epoch_ptime, train_loss, val_loss))
-        epoch += 1
-
+    # Find the correct batch_size via power method
+    for power in range(20):
+        data1, data2, path, sim = train_dataset.__getitem__(0)
+        data_shape = list(data1.shape)
+        path_shape = list(path.shape)
+        power_batch_size = 2**power
+        data_shape.insert(0,power_batch_size)
+        path_shape.insert(0,power_batch_size)
+        print("data_shape",data_shape)
+        print("path_shape",path_shape)
+        find_batch_size = 2**power
+        cfg.batch_size = find_batch_size
+        dataset = get_UCRdataset(cwd, cfg)
+        train_dataset = DatasetPreTraining(dataset, 'train', cfg)  
+        try:
+            model.train()
+            train_losses = []
+            epoch_start_time = time.time()
+            print("tried power =", power)
+            for _ in range(5):
+                optimizer.zero_grad()
+                data1 = torch.rand(data_shape).to(accelerator.device)
+                data2 = torch.rand(data_shape).to(accelerator.device)
+                path = torch.rand(path_shape).to(accelerator.device)
+                print("check point")
+                with accelerator.autocast():
+                    y = model(data1, data2)[0]
+                    loss = loss_function(F.softmax(y, dim=2), F.softmax(path, dim=2))
+                accelerator.backward(loss)
+                optimizer.step()
+                train_losses.append(loss.item())
+                
+                break
+        except Exception as error:
+            print(error)
+            print("power: ", power-1)
+            break
 
 if __name__ == '__main__':
     main()

@@ -32,12 +32,12 @@ class get_UCRdataset():
         self.dataset_name = UCR_dataset_name_list[str(self.cfg.dataset.ID)]
 
         read_train_data = pd.read_table('%sUCRArchive_2018/%s/%s_TRAIN.tsv' %
-                                        (cwd+dataset_path, self.dataset_name, self.dataset_name), header=None).values
+                                        (dataset_path, self.dataset_name, self.dataset_name), header=None).values
         self.train_data = read_train_data[:, 1:, None]
         self.train_label = read_train_data[:, 0]
 
         read_test_data = pd.read_table('%sUCRArchive_2018/%s/%s_TEST.tsv' %
-                                       (cwd+dataset_path, self.dataset_name, self.dataset_name), header=None).values
+                                       (dataset_path, self.dataset_name, self.dataset_name), header=None).values
         self.test_data = read_test_data[:, 1:, None]
         self.test_label = read_test_data[:, 0]
 
